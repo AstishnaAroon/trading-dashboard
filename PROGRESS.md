@@ -18,7 +18,7 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 ### Phase 1 - MVP (Current Phase)
 - [x] **Setup & Deployment:** Initialize Next.js project, connect GitHub, and establish automated Vercel deployment pipeline.
 - [x] **Authentication (Local):** Secure app using Clerk, set up route protection middleware, and configure user status UI.
-- [ ] **Authentication (Production):** Sync local environment variables to Vercel dashboard.
+- [x] **Authentication (Production):** Sync local environment variables to Vercel dashboard.
 - [ ] **Position Size Calculator:** Build interactive form accepting balance, risk %, and stop loss in pips to output lot sizes.
 - [ ] **Trade Logger:** Implement manual trade entry form (pair, direction, entry/exit prices, lot size, notes) with auto P&L calculation.
 - [ ] **Trade History:** Build a clean statistics panel (total P&L, win rate, average risk-to-reward) and a historical log table.
