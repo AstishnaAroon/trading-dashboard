@@ -23,8 +23,8 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - [x] **Trade Logger:** Implement manual trade entry form (pair, direction, entry/exit prices, lot size, notes) with auto P&L calculation.
 - [x] **Trade History:** Build a clean statistics panel (total P&L, win rate, average risk-to-reward) and a historical log table.
 
-### Phase 2 - Live Data & Charts
-- [ ] **Live Ticker:** Connect free Finnhub API for major forex pairs.
+### Phase 2 - Live Data & Charts (Current Phase)
+- [x] **Live Ticker:** Connect free Finnhub API for major forex pairs.
 - [ ] **Charts:** Integrate TradingView Lightweight Charts library.
 - [ ] **Watchlist:** Allow saving favorite pairs locally or in-database.
 - [ ] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
@@ -51,6 +51,16 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
   ```tsx
   <Show when="signed-in">/* Protected UI */</Show>
   <Show when="signed-out">/* Public UI */</Show>
+
+
+### June 23, 2026: Live Market Ticker Implementation
+- **WebSocket Streaming:** Integrated Finnhub's real-time WebSocket connection to stream live exchange rates directly in the browser, completely bypassing the Vercel serverless execution limits (zero server load).
+- **Dynamic Price Flashing:** Implemented custom React state mapping to track and compare tick movements, rendering dynamic color flashes (green for ticks up, red for ticks down) the millisecond market quotes update.
+- **Responsive Dashboard Header:** Placed the `LiveTicker.tsx` component horizontally at the very top of the authenticated dashboard cockpit.
+
+
+
+
 
 
 
