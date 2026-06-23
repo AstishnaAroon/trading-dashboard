@@ -2,6 +2,7 @@ import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import PositionCalculator from "../components/PositionCalculator";
 import TradeLogger from "../components/TradeLogger";
 import TradeHistory from "../components/TradeHistory";
+import LiveTicker from "../components/LiveTicker";
 
 export default function Home() {
   return (
@@ -42,7 +43,12 @@ export default function Home() {
       {/* Signed In View - Full Dashboard Cockpit */}
       <Show when="signed-in">
         <div className="flex flex-col gap-8 w-full max-w-5xl pb-16 items-start animate-fadeIn">
-          {/* Row 1: Forms Grid */}
+          {/* Row 1: Real-time Market Ticker */}
+          <div className="w-full">
+            <LiveTicker />
+          </div>
+
+          {/* Row 2: Forms Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
             {/* Column 1: Calculator */}
             <div className="flex justify-center">
@@ -55,7 +61,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Row 2: Stats Panel & Historical Log Table */}
+          {/* Row 3: Stats Panel & Historical Log Table */}
           <div className="w-full">
             <TradeHistory />
           </div>
