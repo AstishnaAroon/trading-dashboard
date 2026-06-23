@@ -3,6 +3,7 @@ import PositionCalculator from "../components/PositionCalculator";
 import TradeLogger from "../components/TradeLogger";
 import TradeHistory from "../components/TradeHistory";
 import LiveTicker from "../components/LiveTicker";
+import TradingViewChart from "../components/TradingViewChart";
 
 export default function Home() {
   return (
@@ -48,7 +49,7 @@ export default function Home() {
             <LiveTicker />
           </div>
 
-          {/* Row 2: Forms Grid */}
+          {/* Row 2: Forms Grid (Calculator & Logger) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
             {/* Column 1: Calculator */}
             <div className="flex justify-center">
@@ -61,7 +62,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Row 3: Stats Panel & Historical Log Table */}
+          {/* Row 3: Interactive Candlestick Chart */}
+          <div className="w-full">
+            <TradingViewChart />
+          </div>
+
+          {/* Row 4: Stats Panel & Historical Log Table */}
           <div className="w-full">
             <TradeHistory />
           </div>
