@@ -4,6 +4,7 @@ import TradeLogger from "../components/TradeLogger";
 import TradeHistory from "../components/TradeHistory";
 import LiveTicker from "../components/LiveTicker";
 import TradingViewChart from "../components/TradingViewChart";
+import PriceAlerts from "../components/PriceAlerts";
 
 export default function Home() {
   return (
@@ -49,20 +50,21 @@ export default function Home() {
             <LiveTicker />
           </div>
 
-          {/* Row 2: Forms Grid (Calculator & Logger) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-            {/* Column 1: Calculator */}
-            <div className="flex justify-center">
+          {/* Row 2: Forms & Tools Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full items-start">
+            {/* Column 1: Stacked Calculator & Price Alerts (Balances the height perfectly) */}
+            <div className="flex flex-col gap-8 w-full">
               <PositionCalculator />
+              <PriceAlerts />
             </div>
 
-            {/* Column 2: Trade Logger */}
-            <div className="flex justify-center">
+            {/* Column 2: Tall Trade Logger */}
+            <div className="flex justify-center w-full">
               <TradeLogger />
             </div>
           </div>
 
-          {/* Row 3: Interactive Candlestick Chart */}
+          {/* Row 3: Advanced TradingView Watchlist Widget */}
           <div className="w-full">
             <TradingViewChart />
           </div>
