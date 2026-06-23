@@ -25,7 +25,7 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 
 ### Phase 2 - Live Data & Charts (Current Phase)
 - [x] **Live Ticker:** Connect free Finnhub API for major forex pairs.
-- [ ] **Charts:** Integrate TradingView Lightweight Charts library.
+- [x] **Charts:** Integrate TradingView Lightweight Charts / Advanced Widget.
 - [ ] **Watchlist:** Allow saving favorite pairs locally or in-database.
 - [ ] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
 
@@ -58,6 +58,12 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - **Dynamic Price Flashing:** Implemented custom React state mapping to track and compare tick movements, rendering dynamic color flashes (green for ticks up, red for ticks down) the millisecond market quotes update.
 - **Responsive Dashboard Header:** Placed the `LiveTicker.tsx` component horizontally at the very top of the authenticated dashboard cockpit.
 
+
+
+### June 23, 2026: Advanced Charting Integration
+- **Advanced TradingView Widget:** Swapped out the raw canvas engine for the official, fully-featured TradingView Advanced Charting Widget. This adds built-in drawing panels (trendlines, Fibonacci), technical indicators (RSI, MACD, Volume), and complete timeframe selectors (1m, 15m, 1h, 4h, Daily).
+- **Embedded UI Options:** Integrated a custom watch-list panel (`XAUUSD` and `EURUSD` default OANDA feeds) and a market details/news pane directly into the chart card.
+- **CSS Collapse Fix:** Set an explicit `h-[650px]` style on the parent wrapper to prevent nested percentage heights from collapsing, ensuring a spacious, high-resolution rendering layout across all desktop displays.
 
 
 
