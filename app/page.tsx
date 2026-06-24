@@ -5,6 +5,7 @@ import TradeHistory from "../components/TradeHistory";
 import LiveTicker from "../components/LiveTicker";
 import TradingViewChart from "../components/TradingViewChart";
 import PriceAlerts from "../components/PriceAlerts";
+import StrategyLibrary from "../components/StrategyLibrary";
 
 export default function Home() {
   return (
@@ -24,21 +25,19 @@ export default function Home() {
 
       {/* Signed Out View - Landing Page */}
       <Show when="signed-out">
-        <div className="flex flex-col items-center justify-center flex-grow">
-          <div className="text-center max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl">
-            <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-              Trading Dashboard
-            </h1>
-            <p className="text-slate-400 text-sm mb-6">
-              The ClickUp of trading. Manage your workflow in one clean platform.
-            </p>
+        <div className="text-center max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl">
+          <h1 className="text-3xl font-extrabold tracking-tight mb-2">
+            Trading Dashboard
+          </h1>
+          <p className="text-slate-400 text-sm mb-6">
+            The ClickUp of trading. Manage your workflow in one clean platform.
+          </p>
 
-            <SignInButton mode="modal">
-              <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer">
-                Sign In to Start Gliding
-              </button>
-            </SignInButton>
-          </div>
+          <SignInButton mode="modal">
+            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer">
+              Sign In to Start Gliding
+            </button>
+          </SignInButton>
         </div>
       </Show>
 
@@ -52,7 +51,7 @@ export default function Home() {
 
           {/* Row 2: Forms & Tools Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full items-start">
-            {/* Column 1: Stacked Calculator & Price Alerts (Balances the height perfectly) */}
+            {/* Column 1: Stacked Calculator & Price Alerts */}
             <div className="flex flex-col gap-8 w-full">
               <PositionCalculator />
               <PriceAlerts />
@@ -69,7 +68,12 @@ export default function Home() {
             <TradingViewChart />
           </div>
 
-          {/* Row 4: Stats Panel & Historical Log Table */}
+          {/* Row 4: Strategy Playbook Card Grid */}
+          <div className="w-full">
+            <StrategyLibrary />
+          </div>
+
+          {/* Row 5: Stats Panel & Historical Log Table */}
           <div className="w-full">
             <TradeHistory />
           </div>

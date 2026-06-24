@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { supabase } from "../lib/supabaseClient";
+
+interface StrategyOption {
+  id: string;
+  name: string;
+}
 
 export default function TradeLogger() {
   const { user } = useUser(); // Get the logged-in user from Clerk [2]
@@ -10,7 +15,11 @@ export default function TradeLogger() {
   const [success, setSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Form State variables matching your exact schema
+  // States to hold loaded strategies
+  const [strategies, setStrategies] = useState<StrategyOption[]>([]);
+  const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
+
+  // Form State variables matching our exact schema
   const [pair, setPair] = useState<string>("EUR/USD");
   const [direction, setDirection] = useState<string>("LONG");
   const [session, setSession] = useState<string>("London");
@@ -27,6 +36,25 @@ export default function TradeLogger() {
   const [followedRules, setFollowedRules] = useState<boolean>(true);
   const [beMoved, setBeMoved] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>("");
+
+  // Fetch available strategies on mount so the dropdown has options
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("strategies")
+        .select("id, name")
+        .order("created_at", { ascending: true });
+
+      if (!error) {
+        setStrategies(data || []);
+      }
+    };
+
+    if (user) {
+      fetchStrategies();
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +73,7 @@ export default function TradeLogger() {
       pair,
       direction,
       session,
+      strategy_id: selectedStrategyId || null, // Connects trade to selected strategy
       entry_price: parseFloat(entryPrice) || null,
       exit_price: parseFloat(exitPrice) || null,
       pips: parseFloat(pips) || null,
@@ -79,6 +108,7 @@ export default function TradeLogger() {
       setRrPlanned("");
       setRrActual("");
       setNotes("");
+      setSelectedStrategyId(""); // Reset dropdown selection
     }
   };
 
@@ -168,6 +198,25 @@ export default function TradeLogger() {
               <option value="INVALID">Invalid</option>
             </select>
           </div>
+        </div>
+
+        {/* Strategy Selector (New Field!) */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            Strategy Playbook Used
+          </label>
+          <select
+            value={selectedStrategyId}
+            onChange={(e) => setSelectedStrategyId(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none transition"
+          >
+            <option value="">No Strategy (Discretionary Trade)</option>
+            {strategies.map((strat) => (
+              <option key={strat.id} value={strat.id}>
+                {strat.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Row 3: Entry, Exit, Pips, P&L */}

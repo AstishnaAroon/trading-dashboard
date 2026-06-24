@@ -13,6 +13,8 @@ interface Trade {
   risk_pct: number | null;
   rr_actual: number | null;
   outcome: string;
+  strategy_id: string | null;
+  strategies: { name: string } | null; // Captures the nested strategy name from our database JOIN [3]
 }
 
 export default function TradeHistory() {
@@ -21,21 +23,32 @@ export default function TradeHistory() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Fetch trades from Supabase
+  // Fetch trades from Supabase with a nested JOIN on strategies table [3]
   const fetchTrades = async () => {
     if (!user) return;
     setLoading(true);
     
     const { data, error } = await supabase
       .from("trades")
-      .select("id, date, pair, direction, pl, risk_pct, rr_actual, outcome")
+      .select(`
+        id, 
+        date, 
+        pair, 
+        direction, 
+        pl, 
+        risk_pct, 
+        rr_actual, 
+        outcome, 
+        strategy_id,
+        strategies ( name )
+      `) // Fetches the strategy name linked to this trade [3]
       .eq("user_id", user.id)
-      .order("date", { ascending: false }); // Show latest trades first
+      .order("date", { ascending: false });
 
     if (error) {
       setErrorMsg(error.message);
     } else {
-      setTrades(data || []);
+      setTrades(data as unknown as Trade[] || []);
     }
     setLoading(false);
   };
@@ -134,8 +147,7 @@ export default function TradeHistory() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-950/50 text-slate-500 font-bold border-b border-slate-800">
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Date</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Pair</th>
+                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Date/Pair</th>
                   <th className="py-4 px-6 text-xs uppercase tracking-wider">Type</th>
                   <th className="py-4 px-6 text-xs uppercase tracking-wider">Risk %</th>
                   <th className="py-4 px-6 text-xs uppercase tracking-wider">Actual R:R</th>
@@ -146,15 +158,19 @@ export default function TradeHistory() {
               <tbody className="divide-y divide-slate-800/50">
                 {trades.map((trade) => (
                   <tr key={trade.id} className="hover:bg-slate-800/20 transition">
-                    <td className="py-3 px-6 text-slate-400 text-xs">
-                      {new Date(trade.date).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="py-3 px-6 font-bold text-slate-200">
-                      {trade.pair}
+                    <td className="py-3 px-6">
+                      <div className="font-bold text-slate-200">{trade.pair}</div>
+                      {/* Displays the linked strategy name dynamically or defaults to discretionary */}
+                      <div className="text-[10px] text-slate-400 font-medium">
+                        {trade.strategies?.name || "Discretionary Setup"}
+                      </div>
+                      <div className="text-[9px] text-slate-500 mt-0.5">
+                        {new Date(trade.date).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </div>
                     </td>
                     <td className="py-3 px-6 text-xs">
                       <span className={`px-2 py-0.5 rounded font-bold ${
