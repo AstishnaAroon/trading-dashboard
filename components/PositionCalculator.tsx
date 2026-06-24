@@ -2,40 +2,65 @@
 
 import React, { useState } from "react";
 
+// Precise Pip Value Mapping per Standard Lot (100,000 units)
+const INSTRUMENT_MAP: { [key: string]: number } = {
+  "EUR/USD": 10.0,       // Major USD quote pairs: $10.00/pip
+  "GBP/USD": 10.0,
+  "AUD/USD": 10.0,
+  "USD/JPY": 9.2,        // JPY average rate: ~$9.20/pip
+  "EUR/JPY": 9.2,
+  "GBP/JPY": 9.2,
+  "XAU/USD (Gold)": 10.0, // Gold contract size: $10.00/point/pip
+};
+
 export default function PositionCalculator() {
+  // Input states
   const [balance, setBalance] = useState<string>("125000");
   const [riskPercent, setRiskPercent] = useState<string>("1.0");
   const [stopLoss, setStopLoss] = useState<string>("15.0");
-  const [instrument, setInstrument] = useState<string>("standard");
-  const [customPipValue, setCustomPipValue] = useState<string>("10");
+  const [instrument, setInstrument] = useState<string>("EUR/USD");
 
-  const getPipValue = (): number => {
-    if (instrument === "standard") return 10;
-    if (instrument === "jpy") return 9.2;
-    return parseFloat(customPipValue) || 10;
+  // Input sanitizer: Cleans leading zeroes on blur (e.g. 02.323 -> 2.323)
+  const cleanInputOnBlur = (value: string, setter: (val: string) => void, fallback = "0") => {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      setter(fallback);
+    } else {
+      // Convert back to string to automatically strip leading zeroes
+      setter(Math.abs(parsed).toString()); // Math.abs forces number to be positive
+    }
   };
 
-  const balanceNum = parseFloat(balance) || 0;
-  const riskPercentNum = parseFloat(riskPercent) || 0;
-  const stopLossNum = parseFloat(stopLoss) || 0;
-  const pipValueNum = getPipValue();
+  // Convert inputs to absolute positive numbers to protect calculations
+  const balanceNum = Math.abs(parseFloat(balance)) || 0;
+  const riskPercentNum = Math.abs(parseFloat(riskPercent)) || 0;
+  const stopLossNum = Math.abs(parseFloat(stopLoss)) || 0;
+  
+  // Fetch pip value from our mapped instrument list [DESIGN (5).md]
+  const pipValueNum = INSTRUMENT_MAP[instrument] || 10.0;
 
+  // Mathematical Calculations
   const riskAmount = balanceNum * (riskPercentNum / 100);
   
-  const lotSize = stopLossNum > 0 && pipValueNum > 0 
+  // Safe calculation to prevent dividing by zero
+  const standardLots = stopLossNum > 0 && pipValueNum > 0 
     ? riskAmount / (stopLossNum * pipValueNum) 
     : 0;
 
+  const positionUnits = standardLots * 100000;
+  const miniLots = standardLots * 10;
+  const microLots = standardLots * 100;
+
   return (
     <div className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone">
-      {/* Title */}
+      {/* Card Title */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Position Calculator</h3>
+        <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Risk & Sizing Calculator</h3>
         <span className="material-symbols-outlined text-ash text-[18px]">calculate</span>
       </div>
 
       <div className="space-y-4">
-        {/* Row for Risk % and Stop Loss */}
+        {/* Row 1: Risk % & Stop Loss */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
@@ -46,6 +71,7 @@ export default function PositionCalculator() {
               step="0.1"
               value={riskPercent}
               onChange={(e) => setRiskPercent(e.target.value)}
+              onBlur={() => cleanInputOnBlur(riskPercent, setRiskPercent, "1.0")}
               placeholder="1.0"
               className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
@@ -57,15 +83,17 @@ export default function PositionCalculator() {
             </label>
             <input
               type="number"
+              step="0.1"
               value={stopLoss}
               onChange={(e) => setStopLoss(e.target.value)}
+              onBlur={() => cleanInputOnBlur(stopLoss, setStopLoss, "15.0")}
               placeholder="15.0"
               className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
         </div>
 
-        {/* Account Balance */}
+        {/* Row 2: Account Balance */}
         <div>
           <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
             Account Balance ($)
@@ -74,58 +102,70 @@ export default function PositionCalculator() {
             type="number"
             value={balance}
             onChange={(e) => setBalance(e.target.value)}
+            onBlur={() => cleanInputOnBlur(balance, setBalance, "10000")}
             placeholder="125,000.00"
             className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
           />
         </div>
 
-        {/* Instrument Dropdown */}
+        {/* Row 3: Instrument Selection (Dropdown) */}
         <div>
           <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
-            Instrument Type
+            Instrument
           </label>
           <select
             value={instrument}
             onChange={(e) => setInstrument(e.target.value)}
-            className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+            className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none cursor-pointer"
           >
-            <option value="standard">Standard Pairs ($10/pip per lot)</option>
-            <option value="jpy">JPY Pairs (~$9.20/pip per lot)</option>
-            <option value="custom">Custom Pip Value</option>
+            {Object.keys(INSTRUMENT_MAP).map((pair) => (
+              <option key={pair} value={pair}>
+                {pair}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Custom Pip Value */}
-        {instrument === "custom" && (
-          <div>
-            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
-              Custom Pip Value ($ per standard lot)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              value={customPipValue}
-              onChange={(e) => setCustomPipValue(e.target.value)}
-              placeholder="10"
-              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
-            />
-          </div>
-        )}
-
-        {/* Results Panel */}
-        <div className="pt-4 border-t border-iron mt-6 grid grid-cols-2 gap-3">
-          <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
-            <p className="text-[10px] text-ash mb-1 uppercase font-bold">Lot Size</p>
-            <p className="text-[20px] font-bold text-ember-gold tabular-nums">
-              {lotSize.toFixed(2)}
-            </p>
+        {/* Results Panel: Overhauled to calculate all 5 metrics elegantly [DESIGN (5).md] */}
+        <div className="pt-6 border-t border-iron mt-6 space-y-3">
+          {/* 1. Amount at Risk */}
+          <div className="flex items-center justify-between py-1 border-b border-iron/20">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Amount at Risk</span>
+            <span className="text-sm font-bold text-ember-gold tabular-nums truncate max-w-[180px]" title={`$${riskAmount.toLocaleString()}`}>
+              ${riskAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
 
-          <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
-            <p className="text-[10px] text-ash mb-1 uppercase font-bold">At Risk ($)</p>
-            <p className="text-[20px] font-bold text-ember-gold tabular-nums">
-              {riskAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
+          {/* 2. Position Size (Units) */}
+          <div className="flex items-center justify-between py-1 border-b border-iron/20">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Position Size (Units)</span>
+            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={positionUnits.toLocaleString()}>
+              {positionUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </span>
+          </div>
+
+          {/* 3. Standard Lots */}
+          <div className="flex items-center justify-between py-1 border-b border-iron/20">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Standard Lots</span>
+            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={standardLots.toFixed(2)}>
+              {standardLots.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {/* 4. Mini Lots */}
+          <div className="flex items-center justify-between py-1 border-b border-iron/20">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Mini Lots</span>
+            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={miniLots.toFixed(1)}>
+              {miniLots.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            </span>
+          </div>
+
+          {/* 5. Micro Lots */}
+          <div className="flex items-center justify-between py-1">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Micro Lots</span>
+            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={microLots.toFixed(1)}>
+              {microLots.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            </span>
           </div>
         </div>
       </div>
