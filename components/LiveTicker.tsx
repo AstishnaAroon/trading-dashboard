@@ -32,10 +32,8 @@ export default function LiveTicker() {
       return;
     }
 
-    // 1. Open a direct WebSocket connection to Finnhub
     const socket = new WebSocket(`wss://ws.finnhub.io?token=${apiKey}`);
 
-    // 2. When the connection opens, subscribe to our 4 currency pairs
     socket.addEventListener("open", () => {
       setConnected(true);
       Object.keys(SYMBOL_MAP).forEach((symbol) => {
@@ -43,22 +41,17 @@ export default function LiveTicker() {
       });
     });
 
-    // 3. Listen for live price tick messages
     socket.addEventListener("message", (event) => {
       try {
         const parsed = JSON.parse(event.data);
-        
-        // Finnhub pushes price updates as 'trade' messages
         if (parsed.type === "trade" && parsed.data) {
-          const tick = parsed.data[0]; // Get the latest price tick
+          const tick = parsed.data[0];
           const pairName = SYMBOL_MAP[tick.s];
 
           if (pairName) {
             setPrices((prev) => {
               const currentPair = prev[pairName];
-              if (currentPair.current === tick.p) return prev; // If price hasn't changed, do nothing
-
-              // Update current price and store previous price to calculate tick direction
+              if (currentPair.current === tick.p) return prev;
               return {
                 ...prev,
                 [pairName]: {
@@ -74,46 +67,48 @@ export default function LiveTicker() {
       }
     });
 
-    // 4. Handle connection closing
     socket.addEventListener("close", () => {
       setConnected(false);
     });
 
-    // 5. Clean up: close the WebSocket connection when the component unmounts
     return () => {
       socket.close();
     };
   }, []);
 
-  // Determine the CSS color based on tick direction
   const getPriceColor = (price: PriceState) => {
-    if (price.current > price.prev) return "text-emerald-400";
-    if (price.current < price.prev) return "text-rose-500";
-    return "text-slate-200";
+    if (price.current > price.prev) return "text-bone";       // Primary positive delta [DESIGN (5).md]
+    if (price.current < price.prev) return "text-ember-gold"; // Drawdown delta [DESIGN (5).md]
+    return "text-bone";
   };
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-md">
-      <div className="flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          {connected ? "Live Forex Market Feed" : "Connecting to Market Feed..."}
+    <div className="flex items-center gap-6 overflow-x-auto select-none py-1 scrollbar-none w-full max-w-full">
+      {/* Tiny active session pulsing indicator */}
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-ember-gold animate-pulse" : "bg-ash"}`} />
+        <span className="text-[10px] uppercase tracking-widest text-ash font-bold">
+          {connected ? "Live Feed" : "Offline"}
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-6">
+      {/* Ribbon Ticker Feed */}
+      <div className="flex items-center gap-4">
         {Object.keys(prices).map((pair) => {
           const price = prices[pair];
           const colorClass = getPriceColor(price);
 
           return (
-            <div key={pair} className="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800/40">
-              <span className="text-xs font-bold text-slate-400">{pair}</span>
-              <span className={`text-sm font-black font-mono transition-colors duration-300 ${colorClass}`}>
+            <div key={pair} className="flex items-center gap-3 bg-graphite border border-iron px-3 py-1 rounded-sm shrink-0">
+              <span className="text-[11px] font-bold text-ash">{pair}</span>
+              <span className={`tabular-nums text-[13px] font-mono font-medium ${colorClass}`}>
                 {price.current.toLocaleString(undefined, {
                   minimumFractionDigits: pair.includes("JPY") ? 2 : 4,
                   maximumFractionDigits: pair.includes("JPY") ? 3 : 5,
                 })}
+              </span>
+              <span className={`text-[11px] font-mono ${price.current >= price.prev ? "text-bone" : "text-ember-gold"}`}>
+                {price.current >= price.prev ? "▲" : "▼"}
               </span>
             </div>
           );

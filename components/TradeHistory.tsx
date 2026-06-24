@@ -14,7 +14,7 @@ interface Trade {
   rr_actual: number | null;
   outcome: string;
   strategy_id: string | null;
-  strategies: { name: string } | null; // Captures the nested strategy name from our database JOIN [3]
+  strategies: { name: string } | null;
 }
 
 export default function TradeHistory() {
@@ -23,8 +23,6 @@ export default function TradeHistory() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Fetch trades from Supabase with a nested JOIN on strategies table [3]
-  // Fetch trades from Supabase with a nested JOIN on strategies table, filtering out backtests [1]
   const fetchTrades = async () => {
     if (!user) return;
     setLoading(true);
@@ -44,7 +42,7 @@ export default function TradeHistory() {
         strategies ( name )
       `)
       .eq("user_id", user.id)
-      .eq("is_backtest", false) // CRUCIAL: Only fetch real-world trades [1]
+      .eq("is_backtest", false)
       .order("date", { ascending: false });
 
     if (error) {
@@ -55,7 +53,6 @@ export default function TradeHistory() {
     setLoading(false);
   };
 
-  // Run the fetch when the Clerk user is loaded
   useEffect(() => {
     if (user) {
       fetchTrades();
@@ -65,12 +62,10 @@ export default function TradeHistory() {
   // Calculations
   const totalPL = trades.reduce((sum, t) => sum + (t.pl || 0), 0);
   
-  // Calculate win rate from closed trades (WIN, LOSS, BE)
   const closedTrades = trades.filter(t => ["WIN", "LOSS", "BE"].includes(t.outcome));
   const wins = closedTrades.filter(t => t.outcome === "WIN").length;
   const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
 
-  // Calculate average actual R:R
   const rrTrades = trades.filter(t => t.rr_actual !== null);
   const averageRR = rrTrades.length > 0 
     ? rrTrades.reduce((sum, t) => sum + (t.rr_actual || 0), 0) / rrTrades.length 
@@ -78,130 +73,120 @@ export default function TradeHistory() {
 
   if (loading) {
     return (
-      <div className="w-full text-center py-8 text-slate-500 text-sm">
-        Loading trade history...
+      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest">
+        Loading private ledger...
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-6 text-white">
+    <div className="w-full space-y-6 text-bone">
       {/* 1. Statistics Panel */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
         {/* Total P&L Card */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl text-center md:text-left">
-          <span className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
+        <div className="bg-slate border border-iron p-5 rounded-[10px] text-center md:text-left">
+          <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
             Total Net P&L
           </span>
-          <span className={`text-2xl font-black ${totalPL >= 0 ? "text-emerald-400" : "text-rose-500"}`}>
-            {totalPL >= 0 ? "+" : ""}${totalPL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className={`text-2xl font-black tabular-nums ${totalPL >= 0 ? "text-bone" : "text-ember-gold"}`}>
+            {totalPL >= 0 ? "+" : "−"}${Math.abs(totalPL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
         {/* Win Rate Card */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl text-center md:text-left">
-          <span className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
+        <div className="bg-slate border border-iron p-5 rounded-[10px] text-center md:text-left">
+          <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
             Win Rate (Closed)
           </span>
-          <span className="text-2xl font-black text-indigo-400">
+          <span className="text-2xl font-black text-bone tabular-nums">
             {winRate.toFixed(1)}%
           </span>
         </div>
 
         {/* Avg R:R Card */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl text-center md:text-left">
-          <span className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
+        <div className="bg-slate border border-iron p-5 rounded-[10px] text-center md:text-left">
+          <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
             Average Actual R:R
           </span>
-          <span className="text-2xl font-black text-slate-200">
+          <span className="text-2xl font-black text-bone tabular-nums">
             {averageRR.toFixed(1)}R
           </span>
         </div>
       </div>
 
       {/* 2. Historical Data Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+      <div className="bg-slate border border-iron rounded-[10px] overflow-hidden">
+        <div className="px-6 py-4 border-b border-iron bg-graphite/30 flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-base">Trade History Log</h3>
-            <p className="text-xs text-slate-400">A historical breakdown of your past entries.</p>
+            <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Recent Activity Ledger</h3>
+            <p className="text-xs text-ash mt-0.5">Historical verification of past entries.</p>
           </div>
-          <button 
-            onClick={fetchTrades}
-            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-3 py-1.5 rounded-lg transition"
-          >
-            Refresh Log
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-[12px] text-ash select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-bone"></span> Winning
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-ash select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-ember-gold"></span> Drawdown
+            </div>
+          </div>
         </div>
 
         {errorMsg && (
-          <div className="p-4 bg-red-950/20 text-red-400 border-b border-slate-800 text-xs">
+          <div className="p-4 bg-graphite text-ember-gold border-b border-iron text-xs">
             Error loading log: {errorMsg}
           </div>
         )}
 
         {trades.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">
-            No trades recorded yet. Fill out the Trade Logger form above to make your first entry.
+          <div className="p-8 text-center text-ash text-xs uppercase tracking-widest">
+            No trades recorded yet. Fill out the Trade Logger form to make your first entry.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-950/50 text-slate-500 font-bold border-b border-slate-800">
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Date/Pair</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Type</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Risk %</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Actual R:R</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider">Outcome</th>
-                  <th className="py-4 px-6 text-xs uppercase tracking-wider text-right">P&L ($)</th>
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-inkwell/50">
+                <tr className="border-b border-iron text-ash">
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider">Pair</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider">Strategy</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider">RR</th>
+                  <th className="px-6 py-3 text-[11px] font-bold uppercase tracking-wider text-right">Net P&L</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-iron">
                 {trades.map((trade) => (
-                  <tr key={trade.id} className="hover:bg-slate-800/20 transition">
-                    <td className="py-3 px-6">
-                      <div className="font-bold text-slate-200">{trade.pair}</div>
-                      {/* Displays the linked strategy name dynamically or defaults to discretionary */}
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        {trade.strategies?.name || "Discretionary Setup"}
-                      </div>
-                      <div className="text-[9px] text-slate-500 mt-0.5">
-                        {new Date(trade.date).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </div>
+                  <tr key={trade.id} className="hover:bg-inkwell/30 transition-colors">
+                    <td className="px-6 py-4 tabular-nums text-[13px] text-ash">
+                      {new Date(trade.date).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
                     </td>
-                    <td className="py-3 px-6 text-xs">
-                      <span className={`px-2 py-0.5 rounded font-bold ${
-                        trade.direction === "LONG" 
-                          ? "bg-indigo-950/50 text-indigo-400 border border-indigo-800/50" 
-                          : "bg-amber-950/50 text-amber-500 border border-amber-800/50"
-                      }`}>
-                        {trade.direction === "LONG" ? "BUY" : "SELL"}
-                      </span>
+                    <td className="px-6 py-4">
+                      <span className="font-bold text-bone text-[15px]">{trade.pair}</span>
                     </td>
-                    <td className="py-3 px-6 text-slate-300">
-                      {trade.risk_pct ? `${trade.risk_pct}%` : "—"}
+                    <td className="px-6 py-4 text-ash text-[12px]">
+                      {trade.strategies?.name || "Discretionary"}
                     </td>
-                    <td className="py-3 px-6 text-slate-300">
-                      {trade.rr_actual ? `${trade.rr_actual}R` : "—"}
-                    </td>
-                    <td className="py-3 px-6 text-xs">
-                      <span className={`px-2 py-0.5 rounded font-bold ${
-                        trade.outcome === "WIN" ? "bg-emerald-950/50 text-emerald-400" :
-                        trade.outcome === "LOSS" ? "bg-rose-950/50 text-rose-400" :
-                        "bg-slate-800 text-slate-400"
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        trade.outcome === "WIN" 
+                          ? "bg-graphite border border-iron text-bone" 
+                          : "bg-graphite border border-iron text-ember-gold"
                       }`}>
                         {trade.outcome}
                       </span>
                     </td>
-                    <td className={`py-3 px-6 text-right font-bold ${
-                      trade.pl >= 0 ? "text-emerald-400" : "text-rose-500"
+                    <td className="px-6 py-4 tabular-nums text-[13px]">
+                      {trade.rr_actual ? `${trade.rr_actual.toFixed(2)}` : "—"}
+                    </td>
+                    <td className={`px-6 py-4 tabular-nums text-[15px] font-medium text-right ${
+                      trade.pl >= 0 ? "text-bone" : "text-ember-gold"
                     }`}>
-                      {trade.pl >= 0 ? "+" : ""}${trade.pl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {trade.pl >= 0 ? "+" : "−"}${Math.abs(trade.pl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}

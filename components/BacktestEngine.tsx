@@ -32,11 +32,9 @@ export default function BacktestEngine() {
   const [success, setSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // States for database data
   const [strategies, setStrategies] = useState<StrategyOption[]>([]);
   const [backtestTrades, setBacktestTrades] = useState<BacktestTrade[]>([]);
 
-  // Form states matching our exact schema (quarantined with is_backtest: true) [1]
   const [strategyId, setStrategyId] = useState<string>("");
   const [pair, setPair] = useState<string>("EUR/USD");
   const [direction, setDirection] = useState<string>("LONG");
@@ -46,20 +44,17 @@ export default function BacktestEngine() {
   const [rrActual, setRrActual] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
-  // Fetch strategies & backtest trades from database [1]
   const fetchBacktestData = async () => {
     if (!user) return;
     setLoading(true);
     setErrorMsg("");
 
     try {
-      // 1. Fetch available strategies to populate dropdown
       const { data: stratData, error: stratError } = await supabase
         .from("strategies")
         .select("id, name")
         .order("created_at", { ascending: true });
 
-      // 2. Fetch only quarantined backtest trades [1]
       const { data: tradeData, error: tradeError } = await supabase
         .from("trades")
         .select(`
@@ -75,7 +70,7 @@ export default function BacktestEngine() {
           strategies ( name )
         `)
         .eq("user_id", user.id)
-        .eq("is_backtest", true) // CRUCIAL: Fetch only simulated sandbox data [1]
+        .eq("is_backtest", true)
         .order("date", { ascending: false });
 
       if (stratError) throw stratError;
@@ -97,7 +92,6 @@ export default function BacktestEngine() {
     }
   }, [user]);
 
-  // Handle logging a new simulated trade [1]
   const handleSubmitBacktest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -116,7 +110,7 @@ export default function BacktestEngine() {
       rr_actual: parseFloat(rrActual) || null,
       outcome,
       notes: notes || null,
-      is_backtest: true, // CRUCIAL: Quarantine as a backtest [1]
+      is_backtest: true,
     };
 
     const { error } = await supabase.from("trades").insert([backtestData]);
@@ -127,18 +121,16 @@ export default function BacktestEngine() {
       setErrorMsg(error.message);
     } else {
       setSuccess(true);
-      // Reset non-essential fields
       setPl("0");
       setRiskPct("");
       setRrActual("");
       setNotes("");
       setStrategyId("");
-      fetchBacktestData(); // Refresh history immediately [3]
-      setActiveTab("stats"); // Return to stats view to see results
+      fetchBacktestData();
+      setActiveTab("stats");
     }
   };
 
-  // Delete a backtest trade
   const handleDeleteBacktest = async (id: string) => {
     const { error } = await supabase.from("trades").delete().eq("id", id);
     if (!error) {
@@ -146,42 +138,42 @@ export default function BacktestEngine() {
     }
   };
 
-  // Sandbox calculations [1]
   const totalSimulatedTrades = backtestTrades.length;
   const totalSimulatedPL = backtestTrades.reduce((sum, t) => sum + (t.pl || 0), 0);
 
-  // Win rate calculations
   const closedTrades = backtestTrades.filter((t) => ["WIN", "LOSS", "BE"].includes(t.outcome));
   const wins = closedTrades.filter((t) => t.outcome === "WIN").length;
   const simulatedWinRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
 
   if (loading) {
     return (
-      <div className="w-full text-center py-8 text-slate-500 text-sm">
+      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest">
         Loading backtesting sandbox...
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden text-white">
+    <div className="w-full bg-slate border border-iron rounded-[10px] overflow-hidden text-bone">
       {/* Header and Tabs */}
-      <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-950/20">
+      <div className="px-6 py-4 border-b border-iron flex flex-wrap justify-between items-center gap-4 bg-graphite/30">
         <div>
-          <h3 className="font-bold text-base">Backtesting Sandbox</h3>
-          <p className="text-xs text-slate-400">Verify strategies historically without risking real capital [1].</p>
+          <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Backtesting Sandbox</h3>
+          <p className="text-xs text-ash mt-0.5">Verify strategies historically without risking real capital [1].</p>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+        {/* Tab Controls - Sharp 2px Corners [DESIGN (5).md] */}
+        <div className="flex bg-inkwell p-1 rounded-sm border border-iron select-none">
           <button
             onClick={() => {
               setActiveTab("stats");
               setSuccess(false);
               setErrorMsg("");
             }}
-            className={`text-xs font-bold px-4 py-2 rounded-lg transition ${
-              activeTab === "stats" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+            className={`text-xs font-bold px-4 py-2 rounded-sm transition-all duration-200 cursor-pointer ${
+              activeTab === "stats" 
+                ? "bg-white text-inkwell" 
+                : "text-ash hover:text-white"
             }`}
           >
             Sandbox Stats & Log
@@ -192,8 +184,10 @@ export default function BacktestEngine() {
               setSuccess(false);
               setErrorMsg("");
             }}
-            className={`text-xs font-bold px-4 py-2 rounded-lg transition ${
-              activeTab === "record" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+            className={`text-xs font-bold px-4 py-2 rounded-sm transition-all duration-200 cursor-pointer ${
+              activeTab === "record" 
+                ? "bg-white text-inkwell" 
+                : "text-ash hover:text-white"
             }`}
           >
             Record Setup
@@ -202,7 +196,7 @@ export default function BacktestEngine() {
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-950/20 text-red-400 border-b border-slate-800 text-xs">
+        <div className="p-4 bg-graphite text-ember-gold border-b border-iron text-xs">
           Error: {errorMsg}
         </div>
       )}
@@ -212,92 +206,90 @@ export default function BacktestEngine() {
         <div className="p-6 space-y-6">
           {/* Simulated Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-950 border border-slate-800/60 p-4 rounded-xl text-center md:text-left">
-              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+            <div className="bg-inkwell border border-iron p-4 rounded-sm text-center md:text-left">
+              <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
                 Simulated Net P&L
               </span>
-              <span className={`text-xl font-bold ${totalSimulatedPL >= 0 ? "text-emerald-400" : "text-rose-500"}`}>
-                {totalSimulatedPL >= 0 ? "+" : ""}${totalSimulatedPL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span className={`text-xl font-bold font-mono tabular-nums ${totalSimulatedPL >= 0 ? "text-bone" : "text-ember-gold"}`}>
+                {totalSimulatedPL >= 0 ? "+" : "−"}${Math.abs(totalSimulatedPL).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800/60 p-4 rounded-xl text-center md:text-left">
-              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+            <div className="bg-inkwell border border-iron p-4 rounded-sm text-center md:text-left">
+              <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
                 Simulated Win Rate
               </span>
-              <span className="text-xl font-bold text-indigo-400">
+              <span className="text-xl font-bold text-bone tabular-nums">
                 {simulatedWinRate.toFixed(1)}%
               </span>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800/60 p-4 rounded-xl text-center md:text-left">
-              <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+            <div className="bg-inkwell border border-iron p-4 rounded-sm text-center md:text-left">
+              <span className="block text-[10px] font-bold text-ash uppercase tracking-widest mb-1">
                 Simulated Trades
               </span>
-              <span className="text-xl font-bold text-slate-200">
+              <span className="text-xl font-bold text-bone tabular-nums">
                 {totalSimulatedTrades}
               </span>
             </div>
           </div>
 
           {/* Sandbox Log Table */}
-          <div className="border border-slate-800 rounded-xl overflow-hidden">
+          <div className="border border-iron rounded-sm overflow-hidden">
             {backtestTrades.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-xs">
-                No simulated trades recorded yet. Click "Record Setup" above to log your first backtest.
+              <div className="p-8 text-center text-ash text-xs uppercase tracking-widest">
+                No simulated trades recorded yet. Click "Record Setup" to log your first backtest.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-950/40 text-slate-500 font-bold border-b border-slate-800">
-                      <th className="py-3.5 px-4 uppercase tracking-wider">Pair / Strategy</th>
-                      <th className="py-3.5 px-4 uppercase tracking-wider">Type</th>
-                      <th className="py-3.5 px-4 uppercase tracking-wider">Outcome</th>
-                      <th className="py-3.5 px-4 uppercase tracking-wider">Actual R:R</th>
-                      <th className="py-3.5 px-4 uppercase tracking-wider text-right">P&L ($)</th>
-                      <th className="py-3.5 px-4 text-center">Action</th>
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-inkwell/50">
+                    <tr className="border-b border-iron text-ash">
+                      <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Pair / Strategy</th>
+                      <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Type</th>
+                      <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
+                      <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Actual R:R</th>
+                      <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-right">P&L ($)</th>
+                      <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-iron">
                     {backtestTrades.map((trade) => (
-                      <tr key={trade.id} className="hover:bg-slate-800/10 transition">
+                      <tr key={trade.id} className="hover:bg-inkwell/30 transition-colors">
                         <td className="py-3 px-4">
-                          <div className="font-bold text-slate-200">{trade.pair}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">
+                          <div className="font-bold text-bone text-[14px]">{trade.pair}</div>
+                          <div className="text-[10px] text-ash font-medium">
                             {trade.strategies?.name || "Discretionary Setup"}
                           </div>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            trade.direction === "LONG" ? "bg-indigo-950/40 text-indigo-400" : "bg-amber-950/40 text-amber-500"
+                            trade.direction === "LONG" ? "bg-graphite border border-iron text-bone" : "bg-graphite border border-iron text-ember-gold"
                           }`}>
                             {trade.direction === "LONG" ? "BUY" : "SELL"}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            trade.outcome === "WIN" ? "bg-emerald-950/40 text-emerald-400" :
-                            trade.outcome === "LOSS" ? "bg-rose-950/40 text-rose-400" :
-                            "bg-slate-800 text-slate-400"
+                            trade.outcome === "WIN" ? "bg-graphite border border-iron text-bone" : "bg-graphite border border-iron text-ember-gold"
                           }`}>
                             {trade.outcome}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-300 font-mono">
-                          {trade.rr_actual ? `${trade.rr_actual}R` : "—"}
+                        <td className="py-3 px-4 text-bone font-mono tabular-nums">
+                          {trade.rr_actual ? `${trade.rr_actual.toFixed(2)}` : "—"}
                         </td>
-                        <td className={`py-3 px-4 text-right font-bold font-mono ${
-                          trade.pl >= 0 ? "text-emerald-400" : "text-rose-500"
+                        <td className={`py-3 px-4 text-right font-bold font-mono tabular-nums ${
+                          trade.pl >= 0 ? "text-bone" : "text-ember-gold"
                         }`}>
-                          {trade.pl >= 0 ? "+" : ""}${trade.pl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {trade.pl >= 0 ? "+" : "−"}${Math.abs(trade.pl).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-4 text-center">
                           <button
                             onClick={() => handleDeleteBacktest(trade.id)}
-                            className="text-xs text-slate-500 hover:text-red-400 font-semibold transition"
+                            className="text-xs text-ash hover:text-ember-gold font-bold transition-colors cursor-pointer"
                           >
-                            Delete
+                            DELETE
                           </button>
                         </td>
                       </tr>
@@ -314,7 +306,7 @@ export default function BacktestEngine() {
       {activeTab === "record" && (
         <form onSubmit={handleSubmitBacktest} className="p-6 space-y-4">
           {success && (
-            <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-400 text-xs p-3 rounded-xl mb-4">
+            <div className="bg-graphite border border-iron text-bone text-xs p-3 rounded-sm mb-4 text-center">
               Simulated trade successfully recorded in sandbox [1]!
             </div>
           )}
@@ -322,13 +314,13 @@ export default function BacktestEngine() {
           {/* Row 1: Pair & Direction */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Instrument
               </label>
               <select
                 value={pair}
                 onChange={(e) => setPair(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
               >
                 {PAIRS.map((p) => (
                   <option key={p} value={p}>{p}</option>
@@ -337,13 +329,13 @@ export default function BacktestEngine() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Direction
               </label>
               <select
                 value={direction}
                 onChange={(e) => setDirection(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
               >
                 <option value="LONG">Buy (Long)</option>
                 <option value="SHORT">Sell (Short)</option>
@@ -354,13 +346,13 @@ export default function BacktestEngine() {
           {/* Row 2: Strategy Selector & Outcome */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Strategy Playbook Tested
               </label>
               <select
                 value={strategyId}
                 onChange={(e) => setStrategyId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
               >
                 <option value="">No Strategy (Discretionary Setup)</option>
                 {strategies.map((strat) => (
@@ -372,13 +364,13 @@ export default function BacktestEngine() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Simulated Outcome
               </label>
               <select
                 value={outcome}
                 onChange={(e) => setOutcome(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
               >
                 <option value="WIN">Win</option>
                 <option value="LOSS">Loss</option>
@@ -390,7 +382,7 @@ export default function BacktestEngine() {
           {/* Row 3: P&L, Risk %, Actual RR */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Simulated P&L ($)
               </label>
               <input
@@ -398,13 +390,13 @@ export default function BacktestEngine() {
                 step="0.01"
                 value={pl}
                 onChange={(e) => setPl(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Risk (%)
               </label>
               <input
@@ -413,12 +405,12 @@ export default function BacktestEngine() {
                 value={riskPct}
                 onChange={(e) => setRiskPct(e.target.value)}
                 placeholder="1%"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
                 Actual R:R
               </label>
               <input
@@ -427,14 +419,14 @@ export default function BacktestEngine() {
                 value={rrActual}
                 onChange={(e) => setRrActual(e.target.value)}
                 placeholder="e.g. 2.5"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs text-slate-200 outline-none"
+                className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
               />
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Simulation Review Notes
             </label>
             <textarea
@@ -442,16 +434,16 @@ export default function BacktestEngine() {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Why would this trade have hit/missed? What can be optimized?"
               rows={3}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none resize-none"
+              className="w-full bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none resize-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 disabled:text-slate-500 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer"
+            className="w-full bg-white text-inkwell h-12 font-bold text-[14px] rounded-sm hover:bg-bone transition-all duration-200 cursor-pointer uppercase tracking-wider"
           >
-            {saving ? "Recording Simulation..." : "Save Simulated Setup"}
+            {saving ? "Recording..." : "Save Simulated Setup"}
           </button>
         </form>
       )}

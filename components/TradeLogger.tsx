@@ -10,16 +10,14 @@ interface StrategyOption {
 }
 
 export default function TradeLogger() {
-  const { user } = useUser(); // Get the logged-in user from Clerk [2]
+  const { user } = useUser();
   const [loading, setLoading] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // States to hold loaded strategies
   const [strategies, setStrategies] = useState<StrategyOption[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
 
-  // Form State variables matching our exact schema
   const [pair, setPair] = useState<string>("EUR/USD");
   const [direction, setDirection] = useState<string>("LONG");
   const [session, setSession] = useState<string>("London");
@@ -37,7 +35,6 @@ export default function TradeLogger() {
   const [beMoved, setBeMoved] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>("");
 
-  // Fetch available strategies on mount so the dropdown has options
   useEffect(() => {
     const fetchStrategies = async () => {
       if (!user) return;
@@ -67,13 +64,12 @@ export default function TradeLogger() {
     setErrorMsg("");
     setSuccess(false);
 
-    // Prepare data (safe-casting empty strings to null or numbers)
     const tradeData = {
-      user_id: user.id, // Attach Clerk User ID to database record
+      user_id: user.id,
       pair,
       direction,
       session,
-      strategy_id: selectedStrategyId || null, // Connects trade to selected strategy
+      strategy_id: selectedStrategyId || null,
       entry_price: parseFloat(entryPrice) || null,
       exit_price: parseFloat(exitPrice) || null,
       pips: parseFloat(pips) || null,
@@ -90,7 +86,6 @@ export default function TradeLogger() {
       is_backtest: false,
     };
 
-    // Insert trade into Supabase
     const { error } = await supabase.from("trades").insert([tradeData]);
 
     setLoading(false);
@@ -99,7 +94,6 @@ export default function TradeLogger() {
       setErrorMsg(error.message);
     } else {
       setSuccess(true);
-      // Reset non-essential fields on success
       setEntryPrice("");
       setExitPrice("");
       setPips("");
@@ -108,35 +102,36 @@ export default function TradeLogger() {
       setRrPlanned("");
       setRrActual("");
       setNotes("");
-      setSelectedStrategyId(""); // Reset dropdown selection
+      setSelectedStrategyId("");
     }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 text-white"
+      className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone flex flex-col h-full"
     >
-      <h2 className="text-xl font-bold mb-1 tracking-tight">Log a New Trade</h2>
-      <p className="text-slate-400 text-xs mb-6">Record advanced metrics to review and analyze performance.</p>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Log New Entry</h3>
+        <span className="material-symbols-outlined text-ash text-[18px]">edit_note</span>
+      </div>
 
-      {/* Success/Error Alerts */}
       {success && (
-        <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-400 text-xs p-3 rounded-xl mb-6">
-          Trade successfully logged in the database!
+        <div className="bg-graphite border border-iron text-bone text-xs p-3 rounded-sm mb-4 text-center">
+          Entry successfully logged to private ledger.
         </div>
       )}
       {errorMsg && (
-        <div className="bg-red-950/50 border border-red-800 text-red-400 text-xs p-3 rounded-xl mb-6">
+        <div className="bg-graphite border border-ember-gold text-ember-gold text-xs p-3 rounded-sm mb-4 text-center">
           Error: {errorMsg}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4 flex-1">
         {/* Row 1: Pair & Direction */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Pair
             </label>
             <input
@@ -144,19 +139,19 @@ export default function TradeLogger() {
               value={pair}
               onChange={(e) => setPair(e.target.value)}
               placeholder="e.g. EUR/USD"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Direction
             </label>
             <select
               value={direction}
               onChange={(e) => setDirection(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
             >
               <option value="LONG">Buy (Long)</option>
               <option value="SHORT">Sell (Short)</option>
@@ -167,13 +162,13 @@ export default function TradeLogger() {
         {/* Row 2: Session & Outcome */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Session
             </label>
             <select
               value={session}
               onChange={(e) => setSession(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
             >
               <option value="London">London</option>
               <option value="New York">New York</option>
@@ -183,13 +178,13 @@ export default function TradeLogger() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Outcome
             </label>
             <select
               value={outcome}
               onChange={(e) => setOutcome(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
             >
               <option value="WIN">Win</option>
               <option value="LOSS">Loss</option>
@@ -200,17 +195,17 @@ export default function TradeLogger() {
           </div>
         </div>
 
-        {/* Strategy Selector (New Field!) */}
+        {/* Strategy Selector */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Strategy Playbook Used
+          <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
+            Setup / Strategy
           </label>
           <select
             value={selectedStrategyId}
             onChange={(e) => setSelectedStrategyId(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none transition"
+            className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
           >
-            <option value="">No Strategy (Discretionary Trade)</option>
+            <option value="">No Strategy (Discretionary Setup)</option>
             {strategies.map((strat) => (
               <option key={strat.id} value={strat.id}>
                 {strat.name}
@@ -219,10 +214,10 @@ export default function TradeLogger() {
           </select>
         </div>
 
-        {/* Row 3: Entry, Exit, Pips, P&L */}
+        {/* Row 3: Entry, Exit */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Entry Price
             </label>
             <input
@@ -231,12 +226,12 @@ export default function TradeLogger() {
               value={entryPrice}
               onChange={(e) => setEntryPrice(e.target.value)}
               placeholder="e.g. 1.08500"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Exit Price
             </label>
             <input
@@ -245,14 +240,15 @@ export default function TradeLogger() {
               value={exitPrice}
               onChange={(e) => setExitPrice(e.target.value)}
               placeholder="e.g. 1.09000"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
         </div>
 
+        {/* Row 4: Pips, P&L */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Pips gained/lost
             </label>
             <input
@@ -261,12 +257,12 @@ export default function TradeLogger() {
               value={pips}
               onChange={(e) => setPips(e.target.value)}
               placeholder="e.g. 50"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
               Profit/Loss ($)
             </label>
             <input
@@ -274,12 +270,12 @@ export default function TradeLogger() {
               step="0.01"
               value={pl}
               onChange={(e) => setPl(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
         </div>
 
-        {/* Row 4: Risk % & Planned/Actual RR */}
+        {/* Row 5: Risk % & Planned/Actual RR */}
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -291,7 +287,7 @@ export default function TradeLogger() {
               value={riskPct}
               onChange={(e) => setRiskPct(e.target.value)}
               placeholder="1%"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs"
+              className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
             />
           </div>
 
@@ -305,7 +301,7 @@ export default function TradeLogger() {
               value={rrPlanned}
               onChange={(e) => setRrPlanned(e.target.value)}
               placeholder="3"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs"
+              className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
             />
           </div>
 
@@ -319,80 +315,22 @@ export default function TradeLogger() {
               value={rrActual}
               onChange={(e) => setRrActual(e.target.value)}
               placeholder="2.5"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-3 text-xs"
+              className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none"
             />
           </div>
-        </div>
-
-        {/* Row 5: Confluence, Emotion */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Confluence (0-10)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={confluence}
-              onChange={(e) => setConfluence(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Emotion
-            </label>
-            <select
-              value={emotion}
-              onChange={(e) => setEmotion(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm"
-            >
-              <option value="disciplined">Disciplined</option>
-              <option value="greedy">Greedy</option>
-              <option value="fearful">Fearful</option>
-              <option value="fomo">FOMO</option>
-              <option value="impatient">Impatient</option>
-              <option value="anxious">Anxious</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 6: Checkboxes for Rules and BE */}
-        <div className="flex items-center gap-6 py-2">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={followedRules}
-              onChange={(e) => setFollowedRules(e.target.checked)}
-              className="w-4 h-4 rounded bg-slate-950 border-slate-800 accent-indigo-600"
-            />
-            <span className="text-xs text-slate-300">Followed Rules</span>
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={beMoved}
-              onChange={(e) => setBeMoved(e.target.checked)}
-              className="w-4 h-4 rounded bg-slate-950 border-slate-800 accent-indigo-600"
-            />
-            <span className="text-xs text-slate-300">Moved to BE</span>
-          </label>
         </div>
 
         {/* Notes */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Trade Notes
+          <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
+            Notes
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Review setup, market bias, or errors made..."
+            placeholder="Contextual observations..."
             rows={3}
-            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none resize-none"
+            className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none resize-none"
           />
         </div>
       </div>
@@ -400,9 +338,9 @@ export default function TradeLogger() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 disabled:text-slate-500 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer"
+        className="w-full mt-6 bg-white text-inkwell h-12 font-bold text-[14px] rounded-sm hover:bg-bone transition-all duration-200 cursor-pointer uppercase tracking-wider"
       >
-        {loading ? "Saving Trade..." : "Log Trade to Database"}
+        {loading ? "Recording..." : "Log Trade"}
       </button>
     </form>
   );

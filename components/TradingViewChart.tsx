@@ -9,16 +9,14 @@ function TradingViewChart() {
     const currentContainer = containerRef.current;
     if (!currentContainer) return;
 
-    // 1. Prevent duplicate script injection on hot-reloads
     if (currentContainer.querySelector("script")) return;
 
-    // 2. Create the TradingView script element
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.type = "text/javascript";
     script.async = true;
 
-    // 3. Inject your exact configurations (with our custom slate theme colors)
+    // Configured to completely merge with the "Slash" Slate card container background! [DESIGN (5).md]
     script.innerHTML = JSON.stringify({
       "allow_symbol_change": true,
       "calendar": false,
@@ -35,8 +33,8 @@ function TradingViewChart() {
       "symbol": "OANDA:XAUUSD",
       "theme": "dark",
       "timezone": "Etc/UTC",
-      "backgroundColor": "#0f172a",
-      "gridColor": "rgba(30, 41, 59, 0.5)",
+      "backgroundColor": "#1c1d22", // Slate background [DESIGN (5).md]
+      "gridColor": "#2e3038",       // Iron grid lines [DESIGN (5).md]
       "watchlist": [
         "OANDA:XAUUSD",
         "OANDA:EURUSD"
@@ -51,29 +49,23 @@ function TradingViewChart() {
       "autosize": true
     });
 
-    // 4. Append the script
     currentContainer.appendChild(script);
 
-    // 5. Cleanup on unmount
-    return () => {
-      // We do not wipe innerHTML during re-renders, let React handle standard mount cycles
-    };
+    return () => {};
   }, []);
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden text-white">
+    <div className="w-full bg-slate border border-iron rounded-[10px] overflow-hidden text-bone">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-800">
-        <h3 className="font-bold text-base">Interactive Price Chart</h3>
-        <p className="text-xs text-slate-400">Advanced multi-timeframe analysis powered by TradingView.</p>
+      <div className="px-6 py-4 border-b border-iron bg-graphite/30 flex justify-between items-center shrink-0">
+        <div>
+          <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Interactive Price Chart</h3>
+          <p className="text-xs text-ash">Live multi-timeframe analysis powered by TradingView.</p>
+        </div>
       </div>
 
-      {/* 
-        Parent Container: 
-        We set a solid, explicit height of h-[650px] here. 
-        This prevents the child percentage heights from collapsing!
-      */}
-      <div className="p-6 bg-slate-950 h-[650px] w-full">
+      {/* Widget Container - 550px height matching the dashboard grid perfectly */}
+      <div className="p-6 bg-inkwell h-[550px] w-full">
         <div 
           className="tradingview-widget-container" 
           ref={containerRef} 

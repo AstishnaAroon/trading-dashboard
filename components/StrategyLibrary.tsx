@@ -28,26 +28,22 @@ export default function StrategyLibrary() {
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Fetch strategies & trades from database
-  // Fetch strategies & trades from database, filtering out backtests for live performance stats [1]
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
     setErrorMsg("");
 
     try {
-      // 1. Fetch available strategies (system defaults + user custom ones)
       const { data: stratData, error: stratError } = await supabase
         .from("strategies")
         .select("*")
         .order("created_at", { ascending: true });
 
-      // 2. Fetch user's logged trades to calculate strategy performance (excluding backtests) [1]
       const { data: tradeData, error: tradeError } = await supabase
         .from("trades")
         .select("strategy_id, pl, outcome")
         .eq("user_id", user.id)
-        .eq("is_backtest", false); // CRUCIAL: Only calculate live stats [1]
+        .eq("is_backtest", false);
 
       if (stratError) throw stratError;
       if (tradeError) throw tradeError;
@@ -68,15 +64,12 @@ export default function StrategyLibrary() {
     }
   }, [user]);
 
-  // Helper function to calculate real-time stats for a specific strategy
   const getStrategyStats = (stratId: string) => {
     const stratTrades = trades.filter((t) => t.strategy_id === stratId);
     const totalTrades = stratTrades.length;
 
-    // Calculate Net Profit
     const netPL = stratTrades.reduce((sum, t) => sum + (t.pl || 0), 0);
 
-    // Calculate Win Rate
     const closedTrades = stratTrades.filter((t) => ["WIN", "LOSS", "BE"].includes(t.outcome));
     const wins = closedTrades.filter((t) => t.outcome === "WIN").length;
     const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
@@ -86,22 +79,22 @@ export default function StrategyLibrary() {
 
   if (loading) {
     return (
-      <div className="w-full text-center py-8 text-slate-500 text-sm">
-        Loading strategy catalog...
+      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest">
+        Loading strategy playbook...
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-6 text-white">
+    <div className="w-full space-y-6 text-bone">
       {/* Title block */}
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Strategy Playbook</h2>
-        <p className="text-xs text-slate-400">Review your rulesets, and track which system generates the highest return.</p>
+        <h2 className="text-[14px] font-bold uppercase tracking-widest text-ash">Strategy Playbook</h2>
+        <p className="text-xs text-ash mt-0.5 font-medium">Review your rulesets, and track which system generates the highest return.</p>
       </div>
 
       {errorMsg && (
-        <div className="bg-red-950/20 text-red-400 border border-red-800 text-xs p-3 rounded-xl">
+        <div className="bg-graphite text-ember-gold border border-iron text-xs p-3 rounded-sm">
           Error: {errorMsg}
         </div>
       )}
@@ -115,40 +108,40 @@ export default function StrategyLibrary() {
             <div
               key={strat.id}
               onClick={() => setSelectedStrategy(strat)}
-              className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-6 rounded-2xl shadow-xl transition cursor-pointer flex flex-col justify-between min-h-[220px]"
+              className="bg-slate border border-iron hover:border-ash p-6 rounded-[10px] shadow-xl transition cursor-pointer flex flex-col justify-between min-h-[220px]"
             >
               {/* Header */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="px-2 py-0.5 bg-graphite border border-iron text-[10px] font-bold text-ash uppercase tracking-widest rounded-sm">
                     {strat.style}
                   </span>
-                  <span className="text-xs font-semibold text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded-lg border border-indigo-900/30">
+                  <span className="text-[11px] font-semibold text-pearl bg-transparent border border-steel px-2 py-0.5 rounded-full select-none">
                     {strat.timeframe}
                   </span>
                 </div>
-                <h3 className="font-bold text-base text-slate-200 mb-1 group-hover:text-white">
+                <h3 className="font-bold text-base text-bone mb-1">
                   {strat.name}
                 </h3>
-                <p className="text-slate-400 text-xs line-clamp-2 leading-relaxed">
+                <p className="text-ash text-xs line-clamp-2 leading-relaxed">
                   {strat.description}
                 </p>
               </div>
 
               {/* Real-time Performance Metrics */}
-              <div className="mt-6 pt-4 border-t border-slate-800/60 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="mt-6 pt-4 border-t border-iron grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
-                  <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Trades</span>
-                  <span className="font-bold text-slate-200">{totalTrades}</span>
+                  <span className="block text-[9px] font-bold text-ash uppercase tracking-wider mb-0.5">Trades</span>
+                  <span className="font-bold text-bone tabular-nums">{totalTrades}</span>
                 </div>
                 <div>
-                  <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Win Rate</span>
-                  <span className="font-bold text-indigo-400">{winRate.toFixed(0)}%</span>
+                  <span className="block text-[9px] font-bold text-ash uppercase tracking-wider mb-0.5">Win Rate</span>
+                  <span className="font-bold text-bone tabular-nums">{winRate.toFixed(0)}%</span>
                 </div>
                 <div>
-                  <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">P&L</span>
-                  <span className={`font-bold ${netPL >= 0 ? "text-emerald-400" : "text-rose-500"}`}>
-                    {netPL >= 0 ? "+" : ""}${netPL.toFixed(0)}
+                  <span className="block text-[9px] font-bold text-ash uppercase tracking-wider mb-0.5">P&L</span>
+                  <span className={`font-bold font-mono tabular-nums ${netPL >= 0 ? "text-bone" : "text-ember-gold"}`}>
+                    {netPL >= 0 ? "+" : "−"}${Math.abs(netPL).toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -159,49 +152,49 @@ export default function StrategyLibrary() {
 
       {/* Interactive Rules Modal Overlay */}
       {selectedStrategy && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+        <div className="fixed inset-0 bg-obsidian/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate border border-iron max-w-lg w-full rounded-[10px] shadow-2xl overflow-hidden animate-fadeIn">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
+            <div className="p-6 border-b border-iron flex justify-between items-center bg-graphite/30">
               <div>
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                <span className="text-[10px] font-black text-ember-gold uppercase tracking-widest">
                   {selectedStrategy.style} • {selectedStrategy.timeframe}
                 </span>
-                <h3 className="font-black text-lg text-slate-100 mt-1">
+                <h3 className="font-bold text-lg text-bone mt-1">
                   {selectedStrategy.name}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedStrategy(null)}
-                className="text-slate-400 hover:text-white font-bold text-sm bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition"
+                className="text-bone hover:text-white font-bold text-xs bg-graphite hover:bg-iron px-3 py-1.5 rounded-sm border border-iron transition cursor-pointer"
               >
-                Close
+                CLOSE
               </button>
             </div>
 
-            {/* Modal Body (Interactive Rules Checklist) */}
+            {/* Modal Body */}
             <div className="p-6 space-y-6">
               <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Strategy Overview</h4>
-                <p className="text-slate-300 text-sm leading-relaxed">{selectedStrategy.description}</p>
+                <h4 className="text-[11px] font-bold text-ash uppercase tracking-wider mb-2">Strategy Overview</h4>
+                <p className="text-bone text-sm leading-relaxed">{selectedStrategy.description}</p>
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                <h4 className="text-[11px] font-bold text-ash uppercase tracking-wider mb-3">
                   Step-by-Step Entry Rules (Checklist)
                 </h4>
                 <ul className="space-y-3">
                   {selectedStrategy.rules.map((rule, idx) => (
                     <li
                       key={idx}
-                      className="flex items-start gap-3 bg-slate-950 border border-slate-800/40 p-3 rounded-xl"
+                      className="flex items-start gap-3 bg-inkwell border border-iron p-3 rounded-sm"
                     >
                       <label className="flex items-start gap-3 cursor-pointer select-none">
                         <input
                           type="checkbox"
-                          className="w-4 h-4 mt-0.5 rounded bg-slate-950 border-slate-800 accent-indigo-600 cursor-pointer"
+                          className="w-4 h-4 mt-0.5 rounded-sm bg-graphite border-iron accent-ember-gold cursor-pointer"
                         />
-                        <span className="text-xs text-slate-300 leading-normal">{rule}</span>
+                        <span className="text-xs text-bone leading-normal">{rule}</span>
                       </label>
                     </li>
                   ))}
