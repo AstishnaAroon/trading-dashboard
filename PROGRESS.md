@@ -31,7 +31,7 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 
 ### Phase 3 - Advanced Features
 - [x] **Strategy Library:** Catalog and save personal trading systems.
-- [ ] **Backtesting Engine:** Simulate strategy performance over historical windows.
+- [x] **Backtesting Engine:** Simulate strategy performance over historical windows.
 
 ---
 
@@ -77,6 +77,12 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - **Relational SQL Join:** Configured a nested database query (`supabase.from("trades").select("..., strategies(name)")`) to dynamically pull and display the specific strategy utilized on each trade directly in the Historical Log Table.
 - **Performance Compilation:** Implemented dynamic React statistical filters that compile total trades, net P&L, and win rates for each strategy by checking mapped database records.
 - **Interactive Checklist UI:** Built `StrategyLibrary.tsx` rendering a grid of playbook cards that open custom modal check-lists for interactive entry verification.
+
+
+### June 24, 2026: Backtesting Sandbox & Roadmap Completion
+- **Data Quarantine Architecture:** Isolated simulated testing logs from real-world trading data by appending strict `.eq("is_backtest", false)` filters to the primary dashboard history log and strategy performance compiler queries.
+- **Interactive Sandbox Environment:** Built `BacktestEngine.tsx` utilizing a clean, tab-based UI that allows users to record simulated setups (attaching them to specific strategies with `is_backtest: true` flags) and review aggregated backtest metrics (net simulated P&L, win rate, and total trades) in a separate, dedicated table.
+- **Production Pipeline Sync:** Successfully compiled the final codebase, pushed to GitHub, and verified all modules (including Resend email routing and TradingView charting) run seamlessly on the live Vercel URL.
 
 
 
