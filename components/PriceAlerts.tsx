@@ -74,6 +74,7 @@ export default function PriceAlerts() {
 
     const newAlert = {
       user_id: user.id,
+      email: user.primaryEmailAddress?.emailAddress || "", // Grab and save their verified Clerk email [2]
       pair,
       target_price: priceNum,
       condition,
@@ -137,7 +138,7 @@ export default function PriceAlerts() {
                 if (Notification.permission === "granted") {
                   new Notification(`🚨 Price Alert Hit!`, {
                     body: `${alert.pair} is now ${alert.condition.toLowerCase()} your target of ${alert.target_price}! Current: ${tickPrice}`,
-                    icon: "/favicon.ico", // Standard tab favicon
+                    icon: "/favicon.ico",
                   });
                 }
 
