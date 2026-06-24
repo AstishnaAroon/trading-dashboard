@@ -6,6 +6,7 @@ import LiveTicker from "../components/LiveTicker";
 import TradingViewChart from "../components/TradingViewChart";
 import PriceAlerts from "../components/PriceAlerts";
 import StrategyLibrary from "../components/StrategyLibrary";
+import BacktestEngine from "../components/BacktestEngine";
 
 export default function Home() {
   return (
@@ -25,19 +26,21 @@ export default function Home() {
 
       {/* Signed Out View - Landing Page */}
       <Show when="signed-out">
-        <div className="text-center max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-            Trading Dashboard
-          </h1>
-          <p className="text-slate-400 text-sm mb-6">
-            The ClickUp of trading. Manage your workflow in one clean platform.
-          </p>
+        <div className="flex flex-col items-center justify-center flex-grow">
+          <div className="text-center max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl">
+            <h1 className="text-3xl font-extrabold tracking-tight mb-2">
+              Trading Dashboard
+            </h1>
+            <p className="text-slate-400 text-sm mb-6">
+              The ClickUp of trading. Manage your workflow in one clean platform.
+            </p>
 
-          <SignInButton mode="modal">
-            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer">
-              Sign In to Start Gliding
-            </button>
-          </SignInButton>
+            <SignInButton mode="modal">
+              <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer">
+                Sign In to Start Gliding
+              </button>
+            </SignInButton>
+          </div>
         </div>
       </Show>
 
@@ -73,7 +76,12 @@ export default function Home() {
             <StrategyLibrary />
           </div>
 
-          {/* Row 5: Stats Panel & Historical Log Table */}
+          {/* Row 5: Backtesting Sandbox Environment */}
+          <div className="w-full">
+            <BacktestEngine />
+          </div>
+
+          {/* Row 6: Stats Panel & Historical Log Table */}
           <div className="w-full">
             <TradeHistory />
           </div>

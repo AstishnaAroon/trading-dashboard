@@ -29,6 +29,7 @@ export default function StrategyLibrary() {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   // Fetch strategies & trades from database
+  // Fetch strategies & trades from database, filtering out backtests for live performance stats [1]
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -41,11 +42,12 @@ export default function StrategyLibrary() {
         .select("*")
         .order("created_at", { ascending: true });
 
-      // 2. Fetch user's logged trades to calculate strategy performance
+      // 2. Fetch user's logged trades to calculate strategy performance (excluding backtests) [1]
       const { data: tradeData, error: tradeError } = await supabase
         .from("trades")
         .select("strategy_id, pl, outcome")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("is_backtest", false); // CRUCIAL: Only calculate live stats [1]
 
       if (stratError) throw stratError;
       if (tradeError) throw tradeError;

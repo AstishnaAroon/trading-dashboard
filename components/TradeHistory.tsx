@@ -24,6 +24,7 @@ export default function TradeHistory() {
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   // Fetch trades from Supabase with a nested JOIN on strategies table [3]
+  // Fetch trades from Supabase with a nested JOIN on strategies table, filtering out backtests [1]
   const fetchTrades = async () => {
     if (!user) return;
     setLoading(true);
@@ -41,8 +42,9 @@ export default function TradeHistory() {
         outcome, 
         strategy_id,
         strategies ( name )
-      `) // Fetches the strategy name linked to this trade [3]
+      `)
       .eq("user_id", user.id)
+      .eq("is_backtest", false) // CRUCIAL: Only fetch real-world trades [1]
       .order("date", { ascending: false });
 
     if (error) {

@@ -30,7 +30,7 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - [x] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
 
 ### Phase 3 - Advanced Features
-- [ ] **Strategy Library:** Catalog and save personal trading systems.
+- [x] **Strategy Library:** Catalog and save personal trading systems.
 - [ ] **Backtesting Engine:** Simulate strategy performance over historical windows.
 
 ---
@@ -72,7 +72,11 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - **Resend Email Integration:** Configured Resend email infrastructure, establishing a secure `POST` API route at `/api/send-alert`. Resolved Next.js static build-time compilation issues by instantiating the Resend class dynamically inside the request handler.
 
 
-
+### June 24, 2026: Strategy Playbook & Performance Analytics
+- **Relational Strategy Schema:** Created a custom SQL table `strategies` to house step-by-step entry rules, mapping them directly to individual trades via `strategy_id` references.
+- **Relational SQL Join:** Configured a nested database query (`supabase.from("trades").select("..., strategies(name)")`) to dynamically pull and display the specific strategy utilized on each trade directly in the Historical Log Table.
+- **Performance Compilation:** Implemented dynamic React statistical filters that compile total trades, net P&L, and win rates for each strategy by checking mapped database records.
+- **Interactive Checklist UI:** Built `StrategyLibrary.tsx` rendering a grid of playbook cards that open custom modal check-lists for interactive entry verification.
 
 
 
