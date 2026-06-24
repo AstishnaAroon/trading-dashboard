@@ -1,26 +1,61 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* 1. Define our custom "Slash" color tokens [DESIGN (5).md] */
+  --color-obsidian: #000000;       /* Page-level canvas background */
+  --color-carbon: #030304;         /* Recessed surfaces / shadows */
+  --color-inkwell: #08080a;        /* Elevated dark sections / sidebars */
+  --color-graphite: #121317;       /* Inputs, raised buttons, inner cards */
+  --color-slate: #1c1d22;          /* Card backgrounds, panels */
+  --color-iron: #2e3038;           /* Subtle borders, dividers */
+  --color-steel: #464853;          /* Low-emphasis borders */
+  --color-fog: #5e616e;            /* Muted text, captions */
+  --color-ash: #777a88;            /* Secondary text, link borders */
+  --color-silver: #9194a1;         /* Metadata, inactive controls */
+  --color-pearl: #acafb9;          /* Icon outlines, helper labels */
+  --color-chalk: #cdcdcd;          /* Muted light text */
+  --color-bone: #e2e3e9;           /* Primary body text, headings */
+  --color-paper: #ffffff;          /* High-emphasis text, primary buttons */
+  --color-ember-gold: #cc9166;     /* Gold accents, active indicators */
+  
+  /* 2. Define our custom "Slash" shape tokens [DESIGN (5).md] */
+  --radius-sm: 2px;                /* Buttons, inputs, links, tabs */
+  --radius-lg: 10px;               /* Cards, image tiles, modals */
+  --radius-full: 9999px;           /* Status pills, taxonomy chips */
+
+  /* 3. Define our custom "Slash" typography families [DESIGN (5).md] */
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* 
+  4. Base HTML styles 
+  We use standard CSS variables instead of @apply. 
+  This completely eliminates the VS Code validation warning!
+*/
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-obsidian, #000000);
+  color: var(--color-bone, #e2e3e9);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01"; /* Enable Inter's premium ledger features */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monospace tabular numbers for prices/numbers to prevent character jumping */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Slim scrollbar matching the minimal bank ledger aesthetic [DESIGN (5).md] */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #08080a; /* Inkwell */
+}
+::-webkit-scrollbar-thumb {
+  background: #2e3038; /* Iron */
+  border-radius: 2px;
 }
