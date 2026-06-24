@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 
 interface Alert {
   id: string;
+  email: string; // Ensure we track the email locally in the interface
   pair: string;
   target_price: number;
   condition: "ABOVE" | "BELOW";
@@ -42,12 +43,12 @@ export default function PriceAlerts() {
     setPermissionStatus(res);
   };
 
-  // Fetch active alerts from Supabase
+  // Fetch active alerts from Supabase (Including the email column)
   const fetchAlerts = async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("alerts")
-      .select("id, pair, target_price, condition, is_triggered")
+      .select("id, email, pair, target_price, condition, is_triggered")
       .eq("user_id", user.id)
       .eq("is_triggered", false);
 
@@ -98,7 +99,7 @@ export default function PriceAlerts() {
     }
   };
 
-  // Background price watcher via WebSockets to trigger browser popups
+  // Background price watcher via WebSockets to trigger browser popups & emails
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
     if (!apiKey || alerts.length === 0) return;
@@ -142,10 +143,26 @@ export default function PriceAlerts() {
                   });
                 }
 
-                // 2. Mark as triggered in local UI state immediately to prevent loop
+                // 2. TRIGGER THE EMAIL VIA OUR API (New Feature!) [4]
+                if (alert.email) {
+                  fetch("/api/send-alert", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      email: alert.email,
+                      pair: alert.pair,
+                      targetPrice: alert.target_price,
+                      condition: alert.condition,
+                    }),
+                  }).catch((err) => console.error("Error sending live trigger email:", err));
+                }
+
+                // 3. Mark as triggered in local UI state immediately to prevent loop
                 setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
 
-                // 3. Mark as triggered in Supabase permanently
+                // 4. Mark as triggered in Supabase permanently [1]
                 await supabase
                   .from("alerts")
                   .update({ is_triggered: true })
