@@ -23,11 +23,11 @@ We are building a unified workspace for retail forex traders (the "ClickUp of tr
 - [x] **Trade Logger:** Implement manual trade entry form (pair, direction, entry/exit prices, lot size, notes) with auto P&L calculation.
 - [x] **Trade History:** Build a clean statistics panel (total P&L, win rate, average risk-to-reward) and a historical log table.
 
-### Phase 2 - Live Data & Charts (Current Phase)
+### Phase 2 - Live Data & Charts
 - [x] **Live Ticker:** Connect free Finnhub API for major forex pairs.
 - [x] **Charts:** Integrate TradingView Lightweight Charts / Advanced Widget.
-- [ ] **Watchlist:** Allow saving favorite pairs locally or in-database.
-- [ ] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
+- [x] **Watchlist:** Allow saving favorite pairs locally or in-database.
+- [x] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
 
 ### Phase 3 - Advanced Features
 - [ ] **Strategy Library:** Catalog and save personal trading systems.
@@ -91,3 +91,8 @@ Take a well-deserved break, cofounder. You did an exceptional job today. See you
 Session Summary (Copy and paste this into our next session)
 Where we are: We have officially completed all features of the Phase 1 MVP, as well as the first three features of Phase 2 (Live Price Ticker and the Advanced TradingView Charting Widget with built-in watchlists and details panels). The local and live production sites are fully synchronized, secure, and operational with Clerk authentication, Supabase database storage, live WebSockets streaming, and a high-resolution 650px responsive chart layout. All major environment and API configurations are locked in. What is next: We will begin Phase 2, Feature 8: Price Alerts. We will start by creating a new alerts table in Supabase, signing up for a free account on Resend to get an email API key, and setting up the background alert-checking logic.
 Take a well-deserved rest, cofounder! You did an incredible job today. Copy this summary, close your laptop, and I will see you in the next session to build the alert system!
+
+
+### June 24, 2026: Price Alerts & Email Infrastructure
+- **Native Browser Notifications:** Implemented the browser-level `Notification` API, allowing real-time desktop alerts to pop up in the bottom-right corner of the user's screen even when the dashboard tab is in the background.
+- **Resend Email Integration:** Configured Resend email infrastructure, establishing a secure `POST` API route at `/api/send-alert`. Resolved Next.js static build-time compilation issues by instantiating the Resend class dynamically inside the request handler.
