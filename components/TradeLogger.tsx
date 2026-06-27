@@ -14,6 +14,13 @@ const SESSIONS = ["London", "New York", "Asian", "Overnight"];
 const OUTCOMES = ["WIN", "LOSS", "BE", "UNTAPPED", "INVALID"];
 const EMOTIONS = ["disciplined", "greedy", "fearful", "fomo", "impatient", "anxious"];
 
+// Helper function to format current local time to "YYYY-MM-DDThh:mm" for datetime-local input [3]
+const getLocalISODateTime = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+};
+
 export default function TradeLogger() {
   const { user } = useUser();
   const [loading, setLoading] = useState<boolean>(false);
@@ -22,9 +29,10 @@ export default function TradeLogger() {
 
   const [strategies, setStrategies] = useState<StrategyOption[]>([]);
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
-
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
+  // Form State variables (Date & Time state initialized) [3]
+  const [date, setDate] = useState<string>(getLocalISODateTime());
   const [pair, setPair] = useState<string>("EUR/USD");
   const [direction, setDirection] = useState<string>("LONG");
   const [session, setSession] = useState<string>("London");
@@ -42,6 +50,7 @@ export default function TradeLogger() {
   const [beMoved, setBeMoved] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>("");
 
+  // Fetch available strategies on mount so the dropdown has options
   useEffect(() => {
     const fetchStrategies = async () => {
       if (!user) return;
@@ -60,6 +69,41 @@ export default function TradeLogger() {
     }
   }, [user]);
 
+  // Auto-calculate P&L and Pips based on entry/exit when they lose focus
+  const handlePriceBlur = () => {
+    const entry = parseFloat(entryPrice);
+    const exit = parseFloat(exitPrice);
+    if (isNaN(entry) || isNaN(exit)) return;
+
+    const isJPY = pair.includes("JPY");
+    const isGold = pair.includes("Gold");
+
+    // 1. Calculate Pips gained/lost
+    let calculatedPips = 0;
+    if (isJPY) {
+      calculatedPips = (exit - entry) * 100;
+    } else if (isGold) {
+      calculatedPips = (exit - entry) * 10;
+    } else {
+      calculatedPips = (exit - entry) * 10000;
+    }
+
+    if (direction === "SHORT") {
+      calculatedPips = -calculatedPips;
+    }
+
+    setPips(calculatedPips.toFixed(1));
+  };
+
+  const cleanInputOnBlur = (value: string, setter: (val: string) => void, fallback = "") => {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      setter(fallback);
+    } else {
+      setter(Math.abs(parsed).toString());
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -73,6 +117,7 @@ export default function TradeLogger() {
 
     const tradeData = {
       user_id: user.id,
+      date: new Date(date).toISOString(), // Send custom date/time formatted for PostgreSQL [3]
       pair,
       direction,
       session,
@@ -110,19 +155,11 @@ export default function TradeLogger() {
       setRrActual("");
       setNotes("");
       setSelectedStrategyId("");
+      setDate(getLocalISODateTime()); // Reset to current time [3]
     }
   };
 
-  const cleanInputOnBlur = (value: string, setter: (val: string) => void, fallback = "") => {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) {
-      setter(fallback);
-    } else {
-      setter(Math.abs(parsed).toString());
-    }
-  };
-
-  // Custom SVG caret component to replace the problematic Material Icons [DESIGN (5).md]
+  // Custom SVG caret component [DESIGN (5).md]
   const CaretIcon = () => (
     <svg
       width="10"
@@ -174,6 +211,21 @@ export default function TradeLogger() {
       )}
 
       <div className="space-y-4 flex-1">
+        {/* Row 1: Custom Date/Time Picker [3, DESIGN (5).md] */}
+        <div>
+          <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
+            Entry Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none tabular-nums"
+            required
+          />
+        </div>
+
+        {/* Row 2: Pair & Direction */}
         <div className="grid grid-cols-2 gap-4">
           {/* Pair Select */}
           <div className="relative">
@@ -238,10 +290,9 @@ export default function TradeLogger() {
           </div>
         </div>
 
-        {/* Row 2: Session & Outcome Selectors */}
+        {/* Row 3: Session & Outcome */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Session Select */}
-          <div className="relative">
+          <div>
             <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Session</label>
             <div
               onClick={() => setActiveDropdown(activeDropdown === "session" ? null : "session")}
@@ -268,8 +319,7 @@ export default function TradeLogger() {
             )}
           </div>
 
-          {/* Outcome Select */}
-          <div className="relative">
+          <div>
             <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Outcome</label>
             <div
               onClick={() => setActiveDropdown(activeDropdown === "outcome" ? null : "outcome")}
@@ -297,7 +347,7 @@ export default function TradeLogger() {
           </div>
         </div>
 
-        {/* Strategy Selector with Custom Dropdown */}
+        {/* Strategy Selector */}
         <div className="relative">
           <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Setup / Strategy</label>
           <div
@@ -316,7 +366,7 @@ export default function TradeLogger() {
                   setSelectedStrategyId("");
                   setActiveDropdown(null);
                 }}
-                className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${selectedStrategyId === "" ? "bg-graphite font-bold" : ""}`}
+                className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${selectedStrategyId === "" ? "bg-graphite text-white font-bold" : ""}`}
               >
                 Discretionary Setup
               </div>
@@ -328,7 +378,7 @@ export default function TradeLogger() {
                     setActiveDropdown(null);
                   }}
                   className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${
-                    selectedStrategyId === strat.id ? "bg-graphite font-bold" : ""
+                    selectedStrategyId === strat.id ? "bg-graphite text-white font-bold" : ""
                   }`}
                 >
                   {strat.name}
@@ -338,7 +388,7 @@ export default function TradeLogger() {
           )}
         </div>
 
-        {/* Row 3: Entry, Exit prices */}
+        {/* Row 4: Entry, Exit prices */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
@@ -349,7 +399,7 @@ export default function TradeLogger() {
               step="0.00001"
               value={entryPrice}
               onChange={(e) => setEntryPrice(e.target.value)}
-              onBlur={() => cleanInputOnBlur(entryPrice, setEntryPrice, "")}
+              onBlur={handlePriceBlur}
               placeholder="e.g. 1.08500"
               className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
@@ -364,14 +414,14 @@ export default function TradeLogger() {
               step="0.00001"
               value={exitPrice}
               onChange={(e) => setExitPrice(e.target.value)}
-              onBlur={() => cleanInputOnBlur(exitPrice, setExitPrice, "")}
+              onBlur={handlePriceBlur}
               placeholder="e.g. 1.09000"
               className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
             />
           </div>
         </div>
 
-        {/* Row 4: Pips, P&L */}
+        {/* Row 5: Pips, P&L */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
@@ -401,7 +451,7 @@ export default function TradeLogger() {
           </div>
         </div>
 
-        {/* Row 5: Risk % & Planned/Actual RR */}
+        {/* Row 6: Risk % & Planned/Actual RR */}
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -449,7 +499,7 @@ export default function TradeLogger() {
           </div>
         </div>
 
-        {/* Row 6: Emotion Custom Select */}
+        {/* Row 7: Emotion Custom Select */}
         <div className="relative">
           <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Emotion</label>
           <div
@@ -477,26 +527,51 @@ export default function TradeLogger() {
           )}
         </div>
 
-        {/* Row 7: Checkboxes */}
+        {/* Row 8: Beautiful Custom Checkboxes [DESIGN (5).md] */}
         <div className="flex items-center gap-6 py-1 select-none">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={followedRules}
-              onChange={(e) => setFollowedRules(e.target.checked)}
-              className="w-4 h-4 rounded-sm bg-graphite border-iron accent-ember-gold"
-            />
-            <span className="text-xs text-ash font-bold">Followed Rules</span>
+          {/* Custom Rules Checkbox */}
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={followedRules}
+                onChange={(e) => setFollowedRules(e.target.checked)}
+                className="sr-only" // Hide native checkbox completely
+              />
+              {/* Custom Designed Box with sharp 2px corners */}
+              <div className={`w-4.5 h-4.5 rounded-sm border transition-colors duration-150 flex items-center justify-center ${
+                followedRules ? "bg-white border-white text-inkwell" : "bg-graphite border-iron text-transparent hover:border-ash"
+              }`}>
+                {followedRules && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 4L4 7L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            </div>
+            <span className="text-xs text-ash font-bold group-hover:text-bone transition-colors">Followed Rules</span>
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={beMoved}
-              onChange={(e) => setBeMoved(e.target.checked)}
-              className="w-4 h-4 rounded-sm bg-graphite border-iron accent-ember-gold"
-            />
-            <span className="text-xs text-ash font-bold">Moved to BE</span>
+          {/* Custom Move to BE Checkbox */}
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={beMoved}
+                onChange={(e) => setBeMoved(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`w-4.5 h-4.5 rounded-sm border transition-colors duration-150 flex items-center justify-center ${
+                beMoved ? "bg-white border-white text-inkwell" : "bg-graphite border-iron text-transparent hover:border-ash"
+              }`}>
+                {beMoved && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 4L4 7L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            </div>
+            <span className="text-xs text-ash font-bold group-hover:text-bone transition-colors">Moved to BE</span>
           </label>
         </div>
 

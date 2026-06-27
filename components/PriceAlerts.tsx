@@ -14,23 +14,30 @@ interface Alert {
 }
 
 const PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD"];
+const CONDITIONS = ["ABOVE", "BELOW"];
 
 export default function PriceAlerts() {
   const { user } = useUser();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [permission, setPermissionStatus] = useState<string>("default");
 
+  // Single active dropdown controller (prevents multiple open dropdowns)
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Form states
   const [pair, setPair] = useState<string>("EUR/USD");
   const [targetPrice, setTargetPrice] = useState<string>("");
   const [condition, setCondition] = useState<"ABOVE" | "BELOW">("ABOVE");
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Check current browser notification permission on mount
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermissionStatus(Notification.permission);
     }
   }, []);
 
+  // Request browser permission for desktop notifications
   const requestPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
       alert("This browser does not support desktop notifications.");
@@ -40,6 +47,7 @@ export default function PriceAlerts() {
     setPermissionStatus(res);
   };
 
+  // Fetch active alerts from Supabase (Including the email column)
   const fetchAlerts = async () => {
     if (!user) return;
     const { data, error } = await supabase
@@ -59,6 +67,7 @@ export default function PriceAlerts() {
     }
   }, [user]);
 
+  // Create a new price alert
   const handleCreateAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -86,6 +95,7 @@ export default function PriceAlerts() {
     }
   };
 
+  // Delete an alert
   const handleDeleteAlert = async (id: string) => {
     const { error } = await supabase.from("alerts").delete().eq("id", id);
     if (!error) {
@@ -93,6 +103,7 @@ export default function PriceAlerts() {
     }
   };
 
+  // Background price watcher via WebSockets to trigger browser popups & emails
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
     if (!apiKey || alerts.length === 0) return;
@@ -112,7 +123,7 @@ export default function PriceAlerts() {
         const parsed = JSON.parse(event.data);
         if (parsed.type === "trade" && parsed.data) {
           const tick = parsed.data[0];
-          const tickSymbol = tick.s;
+          const tickSymbol = tick.s; // OANDA:EUR_USD
           const tickPrice = tick.p;
 
           const pairName = tickSymbol.replace("OANDA:", "").replace("_", "/");
@@ -167,14 +178,51 @@ export default function PriceAlerts() {
     };
   }, [alerts]);
 
+  const cleanInputOnBlur = (value: string, setter: (val: string) => void, fallback = "") => {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      setter(fallback);
+    } else {
+      setter(Math.abs(parsed).toString());
+    }
+  };
+
+  // Custom SVG caret component to replace the problematic Material Icons [DESIGN (5).md]
+  const CaretIcon = () => (
+    <svg
+      width="10"
+      height="6"
+      viewBox="0 0 10 6"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0 ml-2"
+    >
+      <path
+        d="M1 1L5 5L9 1"
+        stroke="#cc9166"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+
   return (
-    <div className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone">
+    <div className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone relative">
+      {/* Title - "notifications_active" text icon completely removed [DESIGN (5).md] */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Price Alerts</h3>
-        <span className="material-symbols-outlined text-ash text-[18px]">notifications_active</span>
       </div>
 
-      {/* 1. Request Permission Banner - Styled as a Graphite and Gold box [DESIGN (5).md] */}
+      {/* Global transparent click-shield to close any active custom dropdowns */}
+      {activeDropdown && (
+        <div
+          className="fixed inset-0 z-30 bg-transparent cursor-default"
+          onClick={() => setActiveDropdown(null)}
+        />
+      )}
+
+      {/* 1. Request Permission Banner */}
       {permission !== "granted" && (
         <div className="bg-graphite border border-ember-gold/30 p-4 rounded-sm mb-6 flex flex-col items-center justify-between gap-4">
           <p className="text-xs text-ember-gold text-center">
@@ -192,33 +240,66 @@ export default function PriceAlerts() {
       {/* 2. Create Alert Form */}
       <form onSubmit={handleCreateAlert} className="space-y-4 border-b border-iron pb-6 mb-6">
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
-              Instrument
-            </label>
-            <select
-              value={pair}
-              onChange={(e) => setPair(e.target.value)}
-              className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+          {/* Pair Custom Select */}
+          <div className="relative">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Instrument</label>
+            <div
+              onClick={() => setActiveDropdown(activeDropdown === "pair" ? null : "pair")}
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm flex items-center justify-between cursor-pointer select-none"
             >
-              {PAIRS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+              <span className="font-semibold">{pair}</span>
+              <CaretIcon />
+            </div>
+            {activeDropdown === "pair" && (
+              <div className="absolute left-0 right-0 mt-1 bg-inkwell border border-iron rounded-sm shadow-2xl z-40 max-h-48 overflow-y-auto divide-y divide-iron/20">
+                {PAIRS.map((p) => (
+                  <div
+                    key={p}
+                    onClick={() => {
+                      setPair(p);
+                      setActiveDropdown(null);
+                    }}
+                    className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${pair === p ? "bg-graphite font-bold" : ""}`}
+                  >
+                    {p}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
-              Condition
-            </label>
-            <select
-              value={condition}
-              onChange={(e) => setCondition(e.target.value as "ABOVE" | "BELOW")}
-              className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+          {/* Condition Custom Select */}
+          <div className="relative">
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Condition</label>
+            <div
+              onClick={() => setActiveDropdown(activeDropdown === "condition" ? null : "condition")}
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm flex items-center justify-between cursor-pointer select-none"
             >
-              <option value="ABOVE">Price Goes ABOVE</option>
-              <option value="BELOW">Price Goes BELOW</option>
-            </select>
+              <span className="font-semibold">{condition === "ABOVE" ? "PRICE GOES ABOVE" : "PRICE GOES BELOW"}</span>
+              <CaretIcon />
+            </div>
+            {activeDropdown === "condition" && (
+              <div className="absolute left-0 right-0 mt-1 bg-inkwell border border-iron rounded-sm shadow-2xl z-40">
+                <div
+                  onClick={() => {
+                    setCondition("ABOVE");
+                    setActiveDropdown(null);
+                  }}
+                  className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${condition === "ABOVE" ? "bg-graphite font-bold" : ""}`}
+                >
+                  PRICE GOES ABOVE
+                </div>
+                <div
+                  onClick={() => {
+                    setCondition("BELOW");
+                    setActiveDropdown(null);
+                  }}
+                  className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${condition === "BELOW" ? "bg-graphite font-bold" : ""}`}
+                >
+                  PRICE GOES BELOW
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -232,6 +313,7 @@ export default function PriceAlerts() {
               step="0.00001"
               value={targetPrice}
               onChange={(e) => setTargetPrice(e.target.value)}
+              onBlur={() => cleanInputOnBlur(targetPrice, setTargetPrice, "")}
               placeholder="e.g. 1.09250"
               className="flex-grow bg-graphite border border-iron rounded-sm px-4 py-2 text-sm text-bone focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
               required
@@ -239,7 +321,7 @@ export default function PriceAlerts() {
             <button
               type="submit"
               disabled={loading || permission !== "granted"}
-              className="bg-white text-inkwell hover:bg-bone disabled:bg-graphite disabled:text-ash font-bold px-6 py-2 rounded-sm text-xs transition-colors duration-200 cursor-pointer uppercase tracking-wider"
+              className="bg-white text-inkwell hover:bg-bone disabled:bg-graphite disabled:text-ash font-bold px-6 py-2 rounded-sm text-xs transition-colors duration-200 cursor-pointer uppercase tracking-wider h-[38px] shrink-0"
             >
               {loading ? "..." : "Set Alert"}
             </button>
@@ -247,7 +329,7 @@ export default function PriceAlerts() {
         </div>
       </form>
 
-      {/* 3. Active Alerts List - Styled like our compact Transaction Rows [DESIGN (5).md] */}
+      {/* 3. Active Alerts List */}
       <div>
         <h4 className="text-[11px] font-bold text-ash uppercase tracking-wider mb-3">
           Active Alerts ({alerts.length})
@@ -256,7 +338,7 @@ export default function PriceAlerts() {
         {alerts.length === 0 ? (
           <p className="text-ash text-xs py-4 text-center uppercase tracking-widest">No active alerts running.</p>
         ) : (
-          <div className="space-y-1 max-h-48 overflow-y-auto pr-1 divide-y divide-iron/30">
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1 divide-y divide-iron/30 scrollbar-none">
             {alerts.map((alert) => (
               <div
                 key={alert.id}

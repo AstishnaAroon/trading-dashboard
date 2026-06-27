@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-// Precise Pip Value Mapping per Standard Lot (100,000 units)
+// Precise Pip Value Mapping per Standard Lot (100,000 units) [DESIGN (5).md]
 const INSTRUMENT_MAP: { [key: string]: number } = {
   "EUR/USD": 10.0,       // Major USD quote pairs: $10.00/pip
   "GBP/USD": 10.0,
@@ -14,23 +14,24 @@ const INSTRUMENT_MAP: { [key: string]: number } = {
 };
 
 export default function PositionCalculator() {
-  // Input states
+  // Input states (customPipValue successfully declared!) [DESIGN (5).md]
   const [balance, setBalance] = useState<string>("125000");
   const [riskPercent, setRiskPercent] = useState<string>("1.0");
   const [stopLoss, setStopLoss] = useState<string>("15.0");
   const [instrument, setInstrument] = useState<string>("EUR/USD");
+  const [customPipValue, setCustomPipValue] = useState<string>("10"); 
   
   // Custom dropdown open state
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
-  // Input sanitizer: Cleans leading zeroes on blur (e.g. 02.323 -> 2.323)
+  // Input sanitizer: Cleans leading zeroes on blur (e.g. 02.323 -> 2.323) [DESIGN (5).md]
   const cleanInputOnBlur = (value: string, setter: (val: string) => void, fallback = "0") => {
     const parsed = parseFloat(value);
     if (isNaN(parsed)) {
       setter(fallback);
     } else {
-      // Convert back to string to automatically strip leading zeroes
-      setter(Math.abs(parsed).toString()); // Math.abs forces number to be positive
+      // Convert back to string and force positive value to prevent negative calculations
+      setter(Math.abs(parsed).toString());
     }
   };
 
@@ -40,7 +41,9 @@ export default function PositionCalculator() {
   const stopLossNum = Math.abs(parseFloat(stopLoss)) || 0;
   
   // Fetch pip value from our mapped instrument list [DESIGN (5).md]
-  const pipValueNum = INSTRUMENT_MAP[instrument] || 10.0;
+  const pipValueNum = instrument === "custom" 
+    ? (parseFloat(customPipValue) || 10.0) 
+    : (INSTRUMENT_MAP[instrument] || 10.0);
 
   // Mathematical Calculations
   const riskAmount = balanceNum * (riskPercentNum / 100);
@@ -58,8 +61,7 @@ export default function PositionCalculator() {
     <div className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone relative">
       {/* Card Title */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Risk & Sizing Calculator</h3>
-        <span className="material-symbols-outlined text-ash text-[18px]">calculate</span>
+        <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Position Calculator</h3>
       </div>
 
       <div className="space-y-4">
@@ -145,7 +147,7 @@ export default function PositionCalculator() {
 
           {/* Options Dropdown Overlay */}
           {isDropdownOpen && (
-            <div className="absolute left-0 right-0 mt-1 bg-inkwell border border-iron rounded-sm shadow-2xl z-40 max-h-60 overflow-y-auto divide-y divide-iron/20 animate-fadeIn">
+            <div className="absolute left-0 right-0 mt-1 bg-inkwell border border-iron rounded-sm shadow-2xl z-40 max-h-60 overflow-y-auto divide-y divide-iron/20">
               {Object.keys(INSTRUMENT_MAP).map((pair) => (
                 <div
                   key={pair}
@@ -160,51 +162,84 @@ export default function PositionCalculator() {
                   {pair}
                 </div>
               ))}
+              <div
+                onClick={() => {
+                  setInstrument("custom");
+                  setIsDropdownOpen(false);
+                }}
+                className={`px-4 py-2.5 text-sm text-bone hover:bg-slate cursor-pointer transition-colors duration-150 ${
+                  instrument === "custom" ? "bg-graphite text-white font-bold" : ""
+                }`}
+              >
+                Custom Pip Value
+              </div>
             </div>
           )}
         </div>
 
+        {/* Custom Pip Value Input (Shows only if "custom" is selected) [DESIGN (5).md] */}
+        {instrument === "custom" && (
+          <div>
+            <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
+              Custom Pip Value ($ per standard lot)
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={customPipValue}
+              onChange={(e) => setCustomPipValue(e.target.value)}
+              onBlur={() => cleanInputOnBlur(customPipValue, setCustomPipValue, "10")}
+              placeholder="10"
+              className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
+            />
+          </div>
+        )}
+
         {/* Results Panel: Upgraded with 4-decimal precision on all lot sizes [DESIGN (5).md] */}
         <div className="pt-6 border-t border-iron mt-6 space-y-3">
-          {/* 1. Amount at Risk */}
-          <div className="flex items-center justify-between py-1 border-b border-iron/20">
-            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Amount at Risk</span>
-            <span className="text-sm font-bold text-ember-gold tabular-nums truncate max-w-[180px]" title={`$${riskAmount.toLocaleString()}`}>
-              ${riskAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          
+          {/* Standard Lots - HIGHLY HIGHLIGHTED [DESIGN (5).md] */}
+          <div className="bg-inkwell p-4 rounded-sm border-2 border-ember-gold flex items-center justify-between">
+            <span className="text-[11px] font-bold text-ash uppercase tracking-widest">
+              Standard Lots (Primary)
+            </span>
+            <span className="text-2xl font-black text-white tabular-nums select-all hover:text-ember-gold transition-colors duration-200" title={standardLots.toFixed(4)}>
+              {standardLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
             </span>
           </div>
 
-          {/* 2. Position Size (Units) */}
-          <div className="flex items-center justify-between py-1 border-b border-iron/20">
-            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Position Size (Units)</span>
-            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={positionUnits.toLocaleString()}>
-              {positionUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </span>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
+              <p className="text-[10px] text-ash mb-1 uppercase font-bold">Mini Lots</p>
+              <p className="text-[15px] font-bold text-bone tabular-nums" title={miniLots.toFixed(4)}>
+                {miniLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+              </p>
+            </div>
+
+            <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
+              <p className="text-[10px] text-ash mb-1 uppercase font-bold">Micro Lots</p>
+              <p className="text-[15px] font-bold text-bone tabular-nums" title={microLots.toFixed(4)}>
+                {microLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+              </p>
+            </div>
           </div>
 
-          {/* 3. Standard Lots */}
-          <div className="flex items-center justify-between py-1 border-b border-iron/20">
-            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Standard Lots</span>
-            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={standardLots.toFixed(4)}>
-              {standardLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} <span className="text-[10px] text-ash font-normal uppercase">Lots</span>
-            </span>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
+              <p className="text-[10px] text-ash mb-1 uppercase font-bold">Position Units</p>
+              <p className="text-[14px] font-bold text-bone tabular-nums truncate max-w-[140px]" title={positionUnits.toLocaleString()}>
+                {positionUnits.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+
+            <div className="bg-inkwell p-3 rounded-sm border border-iron text-center">
+              <p className="text-[10px] text-ash mb-1 uppercase font-bold">Amount at Risk</p>
+              <p className="text-[14px] font-bold text-bone tabular-nums truncate max-w-[140px]" title={`$${riskAmount.toLocaleString()}`}>
+                ${riskAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
           </div>
 
-          {/* 4. Mini Lots */}
-          <div className="flex items-center justify-between py-1 border-b border-iron/20">
-            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Mini Lots</span>
-            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={miniLots.toFixed(4)}>
-              {miniLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} <span className="text-[10px] text-ash font-normal uppercase">Lots</span>
-            </span>
-          </div>
-
-          {/* 5. Micro Lots */}
-          <div className="flex items-center justify-between py-1">
-            <span className="text-[11px] font-bold text-ash uppercase tracking-wider">Micro Lots</span>
-            <span className="text-sm font-bold text-bone tabular-nums truncate max-w-[180px]" title={microLots.toFixed(4)}>
-              {microLots.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} <span className="text-[10px] text-ash font-normal uppercase">Lots</span>
-            </span>
-          </div>
         </div>
       </div>
     </div>

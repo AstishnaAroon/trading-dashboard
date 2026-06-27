@@ -11,10 +11,14 @@ import StrategyLibrary from "../components/StrategyLibrary";
 import BacktestEngine from "../components/BacktestEngine";
 import TradeHistory from "../components/TradeHistory";
 import PriceAlerts from "../components/PriceAlerts";
+import BulkImporter from "../components/BulkImporter"; // Import our new Bulk Importer [3]
 
 export default function Home() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<"dashboard" | "journal" | "playbook" | "sandbox" | "alerts">("dashboard");
+  
+  // Controls sub-tabs inside the Journal view (Manual Logging vs CSV Importing) [3]
+  const [journalSubTab, setJournalSubTab] = useState<"manual" | "bulk">("manual");
 
   return (
     <main className="min-h-screen bg-obsidian text-bone overflow-hidden flex relative selection:bg-ember-gold selection:text-obsidian">
@@ -181,12 +185,36 @@ export default function Home() {
               </div>
             )}
 
-            {/* View B: Journal Layout (Logger & History) */}
+            {/* View B: Journal Layout (Tabbed Logger & History) [3] */}
             {activeTab === "journal" && (
               <div className="grid grid-cols-12 gap-6 w-full items-start">
-                <div className="col-span-12 lg:col-span-4 w-full">
-                  <TradeLogger />
+                {/* Left Column: Logging / Importing (4 columns) */}
+                <div className="col-span-12 lg:col-span-4 w-full flex flex-col gap-4">
+                  {/* Journal Sub-Tabs: Sharp 2px Corners [DESIGN (5).md] */}
+                  <div className="flex bg-inkwell p-1 rounded-sm border border-iron select-none w-full shrink-0">
+                    <button
+                      onClick={() => setJournalSubTab("manual")}
+                      className={`flex-1 text-center text-[10px] font-bold py-2 rounded-sm transition-all duration-200 cursor-pointer uppercase tracking-wider ${
+                        journalSubTab === "manual" ? "bg-white text-inkwell" : "text-ash hover:text-white"
+                      }`}
+                    >
+                      Manual Log
+                    </button>
+                    <button
+                      onClick={() => setJournalSubTab("bulk")}
+                      className={`flex-1 text-center text-[10px] font-bold py-2 rounded-sm transition-all duration-200 cursor-pointer uppercase tracking-wider ${
+                        journalSubTab === "bulk" ? "bg-white text-inkwell" : "text-ash hover:text-white"
+                      }`}
+                    >
+                      Bulk Import
+                    </button>
+                  </div>
+
+                  {/* Conditional Render of Logger or Importer [3] */}
+                  {journalSubTab === "manual" ? <TradeLogger /> : <BulkImporter />}
                 </div>
+
+                {/* Right Column: History Ledger (8 columns) */}
                 <div className="col-span-12 lg:col-span-8 w-full">
                   <TradeHistory />
                 </div>

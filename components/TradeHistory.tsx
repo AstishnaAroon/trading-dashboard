@@ -27,6 +27,16 @@ interface Trade {
   strategies: { name: string } | null;
 }
 
+interface StrategyOption {
+  id: string;
+  name: string;
+}
+
+const PAIR_INPUTS = ["EUR/USD", "GBP/USD", "AUD/USD", "USD/JPY", "EUR/JPY", "GBP/JPY", "XAU/USD (Gold)"];
+const SESSIONS = ["London", "New York", "Asian", "Overnight"];
+const OUTCOMES = ["WIN", "LOSS", "BE", "UNTAPPED", "INVALID"];
+const EMOTIONS = ["disciplined", "greedy", "fearful", "fomo", "impatient", "anxious"];
+
 export default function TradeHistory() {
   const { user } = useUser();
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -37,12 +47,26 @@ export default function TradeHistory() {
   const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [saveLoading, setSavingLoading] = useState<boolean>(false);
+  const [strategies, setStrategies] = useState<StrategyOption[]>([]);
 
-  // Edit form states
+  // Edit form states [3]
+  const [editDate, setEditDate] = useState<string>("");
   const [editPair, setEditPair] = useState<string>("");
   const [editDirection, setEditDirection] = useState<string>("");
-  const [editOutcome, setEditOutcome] = useState<string>("");
+  const [editSession, setEditSession] = useState<string>("");
+  const [editStrategyId, setEditStrategyId] = useState<string>("");
+  const [editEntryPrice, setEditEntryPrice] = useState<string>("");
+  const [editExitPrice, setEditExitPrice] = useState<string>("");
+  const [editPips, setEditPips] = useState<string>("");
   const [editPL, setEditPL] = useState<string>("");
+  const [editRiskPct, setEditRiskPct] = useState<string>("");
+  const [editRrPlanned, setEditRrPlanned] = useState<string>("");
+  const [editRrActual, setEditRrActual] = useState<string>("");
+  const [editOutcome, setEditOutcome] = useState<string>("");
+  const [editEmotion, setEditEmotion] = useState<string>("");
+  const [editConfluence, setEditConfluence] = useState<string>("");
+  const [editFollowedRules, setEditFollowedRules] = useState<boolean>(true);
+  const [editBeMoved, setEditBeMoved] = useState<boolean>(false);
   const [editNotes, setEditNotes] = useState<string>("");
 
   const fetchTrades = async () => {
@@ -85,15 +109,27 @@ export default function TradeHistory() {
     setLoading(false);
   };
 
+  // Fetch strategies to populate dropdown in Edit Drawer [3]
+  const fetchStrategies = async () => {
+    const { data, error } = await supabase
+      .from("strategies")
+      .select("id, name")
+      .order("created_at", { ascending: true });
+    if (!error) {
+      setStrategies(data || []);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchTrades();
+      fetchStrategies();
     }
   }, [user]);
 
   // Handle trade deletion [3]
   const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevents expanding the row when clicking delete
+    e.stopPropagation();
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this entry?");
     if (!confirmDelete) return;
 
@@ -105,14 +141,34 @@ export default function TradeHistory() {
     }
   };
 
-  // Open the custom slide-over edit panel [3]
+  // Convert date string from Database to local HTML input format "YYYY-MM-DDThh:mm" [3]
+  const formatDateTimeLocal = (dateStr: string) => {
+    const dateObj = new Date(dateStr);
+    const offset = dateObj.getTimezoneOffset() * 60000;
+    return new Date(dateObj.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  // Open the custom slide-over edit panel & populate states [3]
   const handleStartEdit = (trade: Trade, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTrade(trade);
+    setEditDate(formatDateTimeLocal(trade.date));
     setEditPair(trade.pair);
     setEditDirection(trade.direction);
-    setEditOutcome(trade.outcome);
+    setEditSession(trade.session || "London");
+    setEditStrategyId(trade.strategy_id || "");
+    setEditEntryPrice(trade.entry_price?.toString() || "");
+    setEditExitPrice(trade.exit_price?.toString() || "");
+    setEditPips(trade.pips?.toString() || "");
     setEditPL(trade.pl.toString());
+    setEditRiskPct(trade.risk_pct?.toString() || "");
+    setEditRrPlanned(trade.rr_planned?.toString() || "");
+    setEditRrActual(trade.rr_actual?.toString() || "");
+    setEditOutcome(trade.outcome);
+    setEditEmotion(trade.emotion || "disciplined");
+    setEditConfluence(trade.confluence_score?.toString() || "5");
+    setEditFollowedRules(trade.followed_rules);
+    setEditBeMoved(trade.be_moved);
     setEditNotes(trade.notes || "");
   };
 
@@ -125,10 +181,23 @@ export default function TradeHistory() {
     const { error } = await supabase
       .from("trades")
       .update({
+        date: new Date(editDate).toISOString(),
         pair: editPair,
         direction: editDirection,
-        outcome: editOutcome,
+        session: editSession,
+        strategy_id: editStrategyId || null,
+        entry_price: parseFloat(editEntryPrice) || null,
+        exit_price: parseFloat(editExitPrice) || null,
+        pips: parseFloat(editPips) || null,
         pl: parseFloat(editPL) || 0,
+        risk_pct: parseFloat(editRiskPct) || null,
+        rr_planned: parseFloat(editRrPlanned) || null,
+        rr_actual: parseFloat(editRrActual) || null,
+        outcome: editOutcome,
+        emotion: editEmotion,
+        confluence_score: parseInt(editConfluence) || 5,
+        followed_rules: editFollowedRules,
+        be_moved: editBeMoved,
         notes: editNotes || null,
       })
       .eq("id", editingTrade.id);
@@ -136,11 +205,36 @@ export default function TradeHistory() {
     setSavingLoading(false);
 
     if (error) {
-      alert("Failed to save: " + error.message);
+      alert("Failed to save changes: " + error.message);
     } else {
       setEditingTrade(null);
-      fetchTrades(); // Refresh the list [3]
+      fetchTrades();
     }
+  };
+
+  // Auto-calculate pips inside the edit panel when prices blur [DESIGN (5).md]
+  const handleEditPriceBlur = () => {
+    const entry = parseFloat(editEntryPrice);
+    const exit = parseFloat(editExitPrice);
+    if (isNaN(entry) || isNaN(exit)) return;
+
+    const isJPY = editPair.includes("JPY");
+    const isGold = editPair.includes("Gold");
+
+    let calculatedPips = 0;
+    if (isJPY) {
+      calculatedPips = (exit - entry) * 100;
+    } else if (isGold) {
+      calculatedPips = (exit - entry) * 10;
+    } else {
+      calculatedPips = (exit - entry) * 10000;
+    }
+
+    if (editDirection === "SHORT") {
+      calculatedPips = -calculatedPips;
+    }
+
+    setEditPips(calculatedPips.toFixed(1));
   };
 
   // Stats
@@ -152,14 +246,6 @@ export default function TradeHistory() {
   const averageRR = rrTrades.length > 0 
     ? rrTrades.reduce((sum, t) => sum + (t.rr_actual || 0), 0) / rrTrades.length 
     : 0;
-
-  if (loading) {
-    return (
-      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest font-bold">
-        Loading private ledger...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full space-y-6 text-bone relative">
@@ -212,7 +298,7 @@ export default function TradeHistory() {
                 <span className="w-1.5 h-1.5 rounded-full bg-ember-gold"></span> Drawdown
               </div>
             </div>
-            {/* Elegant Custom Refresh Button [3] */}
+            {/* Custom SVG Refresh Button */}
             <button
               onClick={fetchTrades}
               className="w-8 h-8 rounded-sm bg-graphite border border-iron flex items-center justify-center text-ash hover:text-white transition-colors cursor-pointer"
@@ -236,18 +322,19 @@ export default function TradeHistory() {
             No trades recorded yet. Fill out the Trade Logger form to make your first entry.
           </div>
         ) : (
-          /* Horizontally sliding table with completely hidden scrollbar [DESIGN (5).md] */
+          /* Scrollbar hidden horizontal sliding wrapper [DESIGN (5).md] */
           <div className="overflow-x-auto overflow-y-hidden scrollbar-none relative">
-            <table className="w-full text-left border-collapse min-w-[800px]">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead className="bg-inkwell/50">
                 <tr className="border-b border-iron text-ash">
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Date / Pair</th>
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Actual RR</th>
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-right">Net P&L</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Date / Pair / Strategy</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Session / Emotion</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Rules Adhered</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">R:R (P / A)</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-right">Net P&L</th>
                   {/* Sticky locked Actions Header [DESIGN (5).md] */}
-                  <th className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider sticky right-0 bg-inkwell border-l border-iron z-20 w-[120px]">Actions</th>
+                  <th className="py-4 px-4 text-center text-[11px] font-bold uppercase tracking-wider sticky right-0 bg-inkwell border-l border-iron z-20 w-[120px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-iron">
@@ -256,52 +343,85 @@ export default function TradeHistory() {
 
                   return (
                     <React.Fragment key={trade.id}>
-                      {/* Main Data Row (Clicking anywhere here toggles expansion) */}
+                      {/* Interactive Row */}
                       <tr 
                         onClick={() => setExpandedTradeId(isExpanded ? null : trade.id)}
                         className="hover:bg-inkwell/30 transition-colors cursor-pointer"
                       >
+                        {/* 1. Date / Pair / Strategy (Stacked) [DESIGN (5).md] */}
                         <td className="px-6 py-4">
                           <div className="font-bold text-bone text-[15px]">{trade.pair}</div>
                           <div className="text-[10px] text-ash font-medium truncate max-w-[150px]">
                             {trade.strategies?.name || "Discretionary Setup"}
                           </div>
+                          <div className="text-[9px] text-slate-500 mt-1">
+                            {new Date(trade.date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </div>
                         </td>
+
+                        {/* 2. Session / Emotion [DESIGN (5).md] */}
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            trade.direction === "LONG" ? "bg-graphite border border-iron text-bone" : "bg-graphite border border-iron text-ember-gold"
-                          }`}>
-                            {trade.direction === "LONG" ? "BUY" : "SELL"}
-                          </span>
+                          <div className="text-bone text-[13px] font-medium capitalize">{trade.session || "—"}</div>
+                          <div className="text-[10px] text-ash capitalize mt-0.5">{trade.emotion || "—"}</div>
                         </td>
+
+                        {/* 3. Rules & BE [DESIGN (5).md] */}
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            trade.outcome === "WIN" ? "bg-graphite border border-iron text-bone" : "bg-graphite border border-iron text-ember-gold"
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[10px] font-bold tracking-wider inline-block w-fit px-1.5 py-0.5 rounded-sm ${
+                              trade.followed_rules ? "bg-graphite text-bone border border-iron" : "bg-graphite text-ember-gold border border-iron"
+                            }`}>
+                              {trade.followed_rules ? "RULES MET" : "RULES VIOLATED"}
+                            </span>
+                            {trade.be_moved && (
+                              <span className="text-[9px] text-ash font-medium select-none">
+                                • Stop Moved to BE
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Outcome Tag [DESIGN (5).md] */}
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            trade.outcome === "WIN" 
+                              ? "bg-graphite border-iron text-bone" 
+                              : "bg-graphite border-iron text-ember-gold"
                           }`}>
                             {trade.outcome}
                           </span>
                         </td>
+
+                        {/* 5. Planned & Actual R:R [DESIGN (5).md] */}
                         <td className="px-6 py-4 tabular-nums text-[13px] text-bone font-mono">
-                          {trade.rr_actual ? `${trade.rr_actual.toFixed(2)}` : "—"}
+                          <div className="font-semibold">{trade.rr_actual ? `${trade.rr_actual.toFixed(1)}R` : "—"}</div>
+                          <div className="text-[9px] text-ash mt-0.5">Plan: {trade.rr_planned ? `${trade.rr_planned.toFixed(1)}R` : "—"}</div>
                         </td>
+
+                        {/* 6. Net P&L (Tabular Numbers) [DESIGN (5).md] */}
                         <td className={`px-6 py-4 tabular-nums text-[15px] font-medium text-right ${
                           trade.pl >= 0 ? "text-bone" : "text-ember-gold"
                         }`}>
                           {trade.pl >= 0 ? "+" : "−"}${Math.abs(trade.pl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
-                        {/* Sticky Locked Actions Cell (Always visible during horizontal slide) [DESIGN (5).md] */}
+                        {/* 7. Sticky Actions Column (Wiped of Material Font Icons) [DESIGN (5).md] */}
                         <td className="py-4 px-4 text-center sticky right-0 bg-slate border-l border-iron z-10 w-[120px]">
                           <div className="flex items-center justify-center gap-3">
                             <button
                               onClick={(e) => handleStartEdit(trade, e)}
-                              className="text-ash hover:text-white font-bold text-[11px] transition-colors cursor-pointer"
+                              className="text-ash hover:text-white font-bold text-[11px] transition-colors cursor-pointer uppercase tracking-wider"
                             >
                               EDIT
                             </button>
                             <button
                               onClick={(e) => handleDelete(trade.id, e)}
-                              className="text-ash hover:text-ember-gold font-bold text-[11px] transition-colors cursor-pointer"
+                              className="text-ash hover:text-ember-gold font-bold text-[11px] transition-colors cursor-pointer uppercase tracking-wider"
                             >
                               DELETE
                             </button>
@@ -312,7 +432,7 @@ export default function TradeHistory() {
                       {/* Expandable Rows: Renders full 16-parameter metrics ledger details [DESIGN (5).md] */}
                       {isExpanded && (
                         <tr className="bg-graphite/40 border-b border-iron">
-                          <td colSpan={6} className="p-6">
+                          <td colSpan={7} className="p-6">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-bone max-w-4xl">
                               {/* Left block: prices */}
                               <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
@@ -327,19 +447,11 @@ export default function TradeHistory() {
                                 <p className="text-[10px] text-ash uppercase font-bold">Risk Model</p>
                                 <p className="text-xs"><strong className="text-ash">Risk %:</strong> <span className="font-mono">{trade.risk_pct ? `${trade.risk_pct}%` : "—"}</span></p>
                                 <p className="text-xs"><strong className="text-ash">Planned RR:</strong> <span className="font-mono">{trade.rr_planned ? `${trade.rr_planned}R` : "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Session:</strong> <span className="capitalize">{trade.session || "—"}</span></p>
-                              </div>
-
-                              {/* Psychological state */}
-                              <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
-                                <p className="text-[10px] text-ash uppercase font-bold">Discipline</p>
-                                <p className="text-xs"><strong className="text-ash">Emotion:</strong> <span className="capitalize">{trade.emotion || "—"}</span></p>
                                 <p className="text-xs"><strong className="text-ash">Confluence:</strong> <span className="font-mono">{trade.confluence_score || "—"}/10</span></p>
-                                <p className="text-xs"><strong className="text-ash">Adherence:</strong> <span>{trade.followed_rules ? "Followed Rules" : "Violated Rules"}</span></p>
                               </div>
 
                               {/* Extensive Notes */}
-                              <div className="bg-inkwell p-3 border border-iron rounded-sm flex flex-col justify-between col-span-2 md:col-span-1">
+                              <div className="bg-inkwell p-3 border border-iron rounded-sm flex flex-col justify-between col-span-2">
                                 <p className="text-[10px] text-ash uppercase font-bold mb-1">Journal Review</p>
                                 <p className="text-xs text-ash leading-relaxed italic line-clamp-3">
                                   "{trade.notes || "No additional observations logged."}"
@@ -360,7 +472,7 @@ export default function TradeHistory() {
 
       {/* 3. Sleek, Distinct Slide-Over Edit Drawer Panel [3] */}
       {editingTrade && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans select-none">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-obsidian/80 backdrop-blur-sm transition-opacity"
@@ -385,8 +497,20 @@ export default function TradeHistory() {
                 </button>
               </div>
 
-              {/* Drawer Body - Form Fields */}
-              <form onSubmit={handleSaveEdit} className="flex-1 p-6 space-y-5 overflow-y-auto">
+              {/* Drawer Body - Form Fields (Completely expanded edit features!) [3] */}
+              <form onSubmit={handleSaveEdit} className="flex-1 p-6 space-y-4 overflow-y-auto scrollbar-none">
+                {/* Date/Time */}
+                <div>
+                  <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Entry Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none tabular-nums"
+                    required
+                  />
+                </div>
+
                 {/* Pair */}
                 <div>
                   <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Pair</label>
@@ -399,47 +523,229 @@ export default function TradeHistory() {
                   />
                 </div>
 
-                {/* Direction Selector */}
-                <div>
-                  <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Direction</label>
-                  <select
-                    value={editDirection}
-                    onChange={(e) => setEditDirection(e.target.value)}
-                    className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
-                  >
-                    <option value="LONG">BUY (LONG)</option>
-                    <option value="SHORT">SELL (SHORT)</option>
-                  </select>
+                {/* Direction and Session */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Direction</label>
+                    <select
+                      value={editDirection}
+                      onChange={(e) => setEditDirection(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+                    >
+                      <option value="LONG">BUY (LONG)</option>
+                      <option value="SHORT">SELL (SHORT)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Session</label>
+                    <select
+                      value={editSession}
+                      onChange={(e) => setEditSession(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+                    >
+                      {SESSIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* Outcome Selector */}
-                <div>
-                  <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Outcome</label>
-                  <select
-                    value={editOutcome}
-                    onChange={(e) => setEditOutcome(e.target.value)}
-                    className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
-                  >
-                    <option value="WIN">WIN</option>
-                    <option value="LOSS">LOSS</option>
-                    <option value="BE">BREAK EVEN (BE)</option>
-                  </select>
+                {/* Strategy and Outcome */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Setup / Strategy</label>
+                    <select
+                      value={editStrategyId}
+                      onChange={(e) => setEditStrategyId(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+                    >
+                      <option value="">No Strategy (Discretionary)</option>
+                      {strategies.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Outcome</label>
+                    <select
+                      value={editOutcome}
+                      onChange={(e) => setEditOutcome(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+                    >
+                      {OUTCOMES.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {/* P&L */}
-                <div>
-                  <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Net P&L ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editPL}
-                    onChange={(e) => setEditPL(e.target.value)}
-                    className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none font-mono"
-                    required
-                  />
+                {/* Entry/Exit Prices */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Entry Price</label>
+                    <input
+                      type="number"
+                      step="0.00001"
+                      value={editEntryPrice}
+                      onChange={(e) => setEditEntryPrice(e.target.value)}
+                      onBlur={handleEditPriceBlur}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Exit Price</label>
+                    <input
+                      type="number"
+                      step="0.00001"
+                      value={editExitPrice}
+                      onChange={(e) => setEditExitPrice(e.target.value)}
+                      onBlur={handleEditPriceBlur}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none font-mono"
+                    />
+                  </div>
                 </div>
 
-                {/* Notes */}
+                {/* Pips / P&L */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Pips</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editPips}
+                      onChange={(e) => setEditPips(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Net P&L ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editPL}
+                      onChange={(e) => setEditPL(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Risk % and Planned/Actual RR */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Risk %</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editRiskPct}
+                      onChange={(e) => setEditRiskPct(e.target.value)}
+                      className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Planned RR</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editRrPlanned}
+                      onChange={(e) => setEditRrPlanned(e.target.value)}
+                      className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Actual RR</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editRrActual}
+                      onChange={(e) => setEditRrActual(e.target.value)}
+                      className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone"
+                    />
+                  </div>
+                </div>
+
+                {/* Emotion and Confluence */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Emotion</label>
+                    <select
+                      value={editEmotion}
+                      onChange={(e) => setEditEmotion(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold"
+                    >
+                      {EMOTIONS.map((em) => (
+                        <option key={em} value={em}>{em}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Confluence (0-10)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={editConfluence}
+                      onChange={(e) => setEditConfluence(e.target.value)}
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Checkboxes (Followed Rules & BE) */}
+                <div className="flex items-center gap-6 py-2 select-none">
+                  {/* Custom Checkbox: Followed Rules */}
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={editFollowedRules}
+                        onChange={(e) => setEditFollowedRules(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-4.5 h-4.5 rounded-sm border transition-colors duration-150 flex items-center justify-center ${
+                        editFollowedRules ? "bg-white border-white text-inkwell" : "bg-graphite border-iron text-transparent"
+                      }`}>
+                        {editFollowedRules && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 4L4 7L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs text-ash font-bold">Followed Rules</span>
+                  </label>
+
+                  {/* Custom Checkbox: Moved BE */}
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={editBeMoved}
+                        onChange={(e) => setEditBeMoved(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-4.5 h-4.5 rounded-sm border transition-colors duration-150 flex items-center justify-center ${
+                        editBeMoved ? "bg-white border-white text-inkwell" : "bg-graphite border-iron text-transparent"
+                      }`}>
+                        {editBeMoved && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 4L4 7L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs text-ash font-bold">Moved to BE</span>
+                  </label>
+                </div>
+
+                {/* Review Notes */}
                 <div>
                   <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Review Notes</label>
                   <textarea

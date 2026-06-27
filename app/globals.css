@@ -42,20 +42,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Monospace tabular numbers for prices/numbers to prevent character jumping */
+/* 
+  Global Input Reset: 
+  Completely disables the clunky hover up/down spinners on ALL number inputs [DESIGN (5).md]
+*/
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none; /* Fixed: Added standard property for full compatibility! [DESIGN (5).md] */
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield; /* Fixed: Added standard property to clear vendorPrefix warning! [DESIGN (5).md] */
+}
+/* Monospace tabular numbers for prices/numbers */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
 /* Slim scrollbar matching the minimal bank ledger aesthetic [DESIGN (5).md] */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
 }
-::-webkit-scrollbar-track {
-  background: #08080a; /* Inkwell */
-}
-::-webkit-scrollbar-thumb {
-  background: #2e3038; /* Iron */
-  border-radius: 2px;
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
