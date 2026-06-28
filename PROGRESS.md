@@ -1,56 +1,83 @@
-# Trading Dashboard SaaS - Progress Tracker
+# Trading-Analytics-Suite (TAS) - Progress Tracker
 
-We are building a unified workspace for retail forex traders (the "ClickUp of trading") to solve workflow fragmentation. The design goal is a "gliding" experience that consolidates position sizing, trade logging, charting, and history into one clean interface.
+We are building a unified workspace for retail forex and gold day-traders (the "ClickUp of trading") to solve workflow fragmentation. The design goal is a premium, nocturnal-bank-themed "gliding" experience that consolidates position sizing, trade logging, charting, custom analytics schemas, and history into one clean interface.
 
 ---
 
 ## Technical Stack
 - **Framework:** Next.js (App Router, TypeScript)
-- **Styling:** Tailwind CSS + shadcn/ui
+- **Styling:** Tailwind CSS v4 (Nocturnal Editorial Banking Theme)
 - **Auth:** Clerk (Core 3 API)
-- **Database:** Supabase
-- **Hosting:** Vercel
+- **Database:** Supabase (PostgreSQL with RLS)
+- **Object Storage:** Supabase S3-compatible Buckets
+- **Error Tracking:** Sentry (Free Tier)
+- **Analytics:** PostHog (Free Tier)
+- **Email:** Resend (Free Tier)
 
 ---
 
 ## Roadmap & Feature Status
 
-### Phase 1 - MVP (Current Phase)
+### Phase 1 - MVP (Completed)
 - [x] **Setup & Deployment:** Initialize Next.js project, connect GitHub, and establish automated Vercel deployment pipeline.
-- [x] **Authentication (Local):** Secure app using Clerk, set up route protection middleware, and configure user status UI.
-- [x] **Authentication (Production):** Sync local environment variables to Vercel dashboard.
-- [x] **Position Size Calculator:** Build interactive form accepting balance, risk %, and stop loss in pips to output lot sizes.
-- [x] **Trade Logger:** Implement manual trade entry form (pair, direction, entry/exit prices, lot size, notes) with auto P&L calculation.
-- [x] **Trade History:** Build a clean statistics panel (total P&L, win rate, average risk-to-reward) and a historical log table.
+- [x] **Authentication (Local & Production):** Secure app using Clerk, set up route protection middleware, and configure user status UI.
+- [x] **Position Size Calculator:** Build interactive form accepting balance, risk %, and stop loss in pips to output lot sizes (4-decimal precision).
+- [x] **Trade Journal Ledger:** Implement manual trade entry form with auto pips calculation and clean tabular activity ledger.
 
-### Phase 2 - Live Data & Charts
-- [x] **Live Ticker:** Connect free Finnhub API for major forex pairs.
-- [x] **Charts:** Integrate TradingView Lightweight Charts / Advanced Widget.
-- [x] **Watchlist:** Allow saving favorite pairs locally or in-database.
-- [x] **Price Alerts:** Background alerts triggered by market price crossing user thresholds.
+### Phase 2 - Live Data & Charts (Completed)
+- [x] **Live Ticker:** Connect free Finnhub WebSocket API to stream real-time forex quotes in the header.
+- [x] **Charts:** Integrate TradingView Advanced Charting Widget with built-in watchlists and details panels.
+- [x] **Watchlist:** Completed using TradingView's native integrated watchlist.
+- [x] **Price Alerts:** Background alerts triggered by market price crossing user thresholds, firing simultaneous desktop popups and Resend emails.
 
-### Phase 3 - Advanced Features
-- [x] **Strategy Library:** Catalog and save personal trading systems.
-- [x] **Backtesting Engine:** Simulate strategy performance over historical windows.
+### Phase 3 - Advanced Features (Current Phase)
+- [x] **Strategy Playbook:** Catalog, learn, and save trading strategies, compiling strategy-specific win rates and net P&Ls dynamically.
+- [x] **Backtesting Sandbox (Initial):** Complete data quarantine, custom simulated stats, and separate sandbox editing drawers.
+- [x] **System Health Overhaul:** Integrated Sentry error monitoring and PostHog session recording replays.
+- [x] **Private Admin Panel:** Build password-protected (`QUANT-PRO-26`) administrative panel with database analytics and feedback logs.
+- [x] **Global Feedback Widget:** Floating chatbot-style speech bubble allowing users to submit bug reports directly to Supabase.
+- [x] **GDPR Privacy Policy Page:** Compliant, broadsheet-style static routes `/privacy` explaining our data processing pipeline.
+- [ ] **Notion-Style Database Properties (Dynamic Fields - UNDER ACTIVE REFINEMENT):** Expose all standard fields, allow users to create custom properties (Text, Select, Number, Multi-Select, Date, Checkbox, URL, S3 Files, and Formulas), and dynamically render them.
 
 ---
 
 ## Development History & Architecture Notes
 
 ### June 23, 2026: Local Environment Resolution & Clerk Setup
-- **Windows PATH Resolution:** Encountered system errors (`ENOENT` / `spawn`) where local shell configurations misidentified directories. Resolved by bypassing default shell scripts.
+- **Windows PATH Resolution:** Resolved system errors (`ENOENT` / `spawn`) where local shell configurations misidentified directories. Resolved by bypassing default shell scripts.
   - **Local Dev Server Bypass Command:** 
     ```powershell
     node node_modules/next/dist/bin/next dev
     ```
   - **Direct npm Module Bypass Command:** 
     ```powershell
-    node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" install <package_name>
+    node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" install <package_name> --ignore-scripts
     ```
-- **Clerk Integration (Core 3):** Resolved deprecation issues from recent Clerk upgrades. Replaced removed legacy components (`<SignedIn>` and `<SignedOut>`) with the unified `<Show>` element:
+- **Clerk Integration (Core 3):** Replaced removed legacy components with the unified `<Show>` element:
   ```tsx
   <Show when="signed-in">/* Protected UI */</Show>
   <Show when="signed-out">/* Public UI */</Show>
+  ```
+- **Production Alignment (Zero-Ghost Fix):** Troubleshooting Vercel middleware deployment highlighted a 401 response. Resolved by removing carriage return/newline characters (`\r` and `\n`) appended to secret keys during manual copy actions from Web dashboards, ensuring pure ASCII strings in production environment variables.
+
+### June 23, 2026: Supabase Setup & Advanced Trade Logger Implementation
+- **Postgres Database Schema:** Configured an SQL script to build the relational `trades` table in Supabase. The schema supports standard and psychological metrics with Row Level Security enabled.
+- **Client Integration:** Installed `@supabase/supabase-js` and configured the client helper at `lib/supabaseClient.ts` to utilize environment secrets.
+
+### June 24, 2026: Live Ticker, Advanced Charts, and Price Alerts
+- **WebSocket Streaming:** Integrated Finnhub's WebSocket connection to stream live exchange rates in the browser, completely bypassing the Vercel serverless execution limits.
+- **Advanced TradingView Widget:** Integrated the official, fully-featured TradingView Advanced Charting Widget, adding built-in drawing panels, technical indicators, watchlist panels, and details.
+- **Dual-Trigger Notification Loop:** Integrated browser-level WebSockets in `PriceAlerts.tsx` directly with our Resend API route (`/api/send-alert`). When a price threshold is crossed, the browser triggers a native desktop popup and fires a secure background `POST` request to dispatch an HTML email to the user's verified inbox at the exact same moment.
+
+### June 28, 2026: Notion-Style Database Properties & System Health
+- **Notion Property Schema:** Created the `user_properties` table in Supabase supporting 11 dynamic types. Seeded 13 standard optional metrics under the system schema.
+- **Dynamic Trade Logger Overhaul:** Rewrote `TradeLogger.tsx` to dynamically query active properties, render respective input components (text, numbers, selectors, custom checkboxes, and a Live S3 File Uploader), and save them on-the-fly.
+- **S3 Object Storage Provisioning:** Created the public S3 Storage Bucket `trades-media` in Supabase to securely house uploaded files, storing only the public URL inside the database row.
+- **Relational Ledger Alignments:** Rewrote `TradeHistory.tsx` to group 16 parameters into stacked, perfectly aligned columns, implementing expandable rows, scrollbar-none horizontal sliding, and a custom right-locked Slide-Over Edit Drawer.
+- **Private Admin Panel & Feedback:** Built the floating `FeedbackWidget` globally in the root layout, saving submissions to a new Supabase table. Built a secure `/admin` page protected by a decrypter wall (`QUANT-PRO-26`) displaying global stats, Sentry links, and a real-time feedback inbox.
+
+
+---
 
 
 ### June 23, 2026: Live Market Ticker Implementation
