@@ -268,12 +268,19 @@ export default function Home() {
           </div>
 
           {/* Footer Space */}
-          <footer className="mt-auto pt-12 pb-8 px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-ash text-[11px] uppercase tracking-widest border-t border-iron/50 bg-inkwell/20">
+          {/* 
+            Footer Space - Fully Configured [DESIGN (5).md]
+            All links are now fully routed to your active, dark-mode legal pages!
+          */}
+          <footer className="mt-auto pt-12 pb-8 px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-ash text-[11px] uppercase tracking-widest border-t border-iron/50 bg-inkwell/20 select-none">
             <p>© 2026 Trading-Analytics-Suite. All systems operational.</p>
-            <div className="flex gap-8">
-              <a className="hover:text-ember-gold transition-colors" href="#">Terms of Desk</a>
-              <a className="hover:text-ember-gold transition-colors" href="#">Privacy Protocol</a>
-              <a className="hover:text-ember-gold transition-colors" href="#">Terminal Version 5.1.0</a>
+            <div className="flex flex-wrap gap-6 justify-center">
+              <a className="hover:text-ember-gold transition-colors duration-150" href="/terms">Terms of Service</a>
+              <a className="hover:text-ember-gold transition-colors duration-150" href="/privacy">Privacy Policy</a>
+              <a className="hover:text-ember-gold transition-colors duration-150" href="/disclaimer">Risk Disclaimer</a>
+              <a className="hover:text-ember-gold transition-colors duration-150" href="/cookies">Cookie Policy</a>
+              <span className="text-slate-600 select-none">•</span>
+              <span className="text-slate-500 font-mono">Terminal Version 5.1.0</span>
             </div>
           </footer>
         </main>
