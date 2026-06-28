@@ -23,6 +23,7 @@ interface Trade {
   entry_price: number | null;
   exit_price: number | null;
   pips: number | null;
+  custom_fields: any; // Captures our dynamic custom properties [3]
   strategy_id: string | null;
   strategies: { name: string } | null;
 }
@@ -94,9 +95,10 @@ export default function TradeHistory() {
         entry_price,
         exit_price,
         pips,
+        custom_fields,
         strategy_id,
         strategies ( name )
-      `)
+      `) // custom_fields successfully included! [3]
       .eq("user_id", user.id)
       .eq("is_backtest", false)
       .order("date", { ascending: false });
@@ -126,6 +128,7 @@ export default function TradeHistory() {
     }
   }, [user]);
 
+  // Handle trade deletion [3]
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this entry?");
@@ -145,29 +148,31 @@ export default function TradeHistory() {
     return new Date(dateObj.getTime() - offset).toISOString().slice(0, 16);
   };
 
+  // Open the custom slide-over edit panel & populate states with defensive fallback values [1, 3]
   const handleStartEdit = (trade: Trade, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTrade(trade);
     setEditDate(formatDateTimeLocal(trade.date));
-    setEditPair(trade.pair);
-    setEditDirection(trade.direction);
-    setEditSession(trade.session || "London");
+    setEditPair(trade.pair || "");
+    setEditDirection(trade.direction || "LONG"); // Fixed: Fallback to prevent null select states [1]
+    setEditSession(trade.session || "London");     // Fixed: Fallback to prevent null select states [1]
     setEditStrategyId(trade.strategy_id || "");
     setEditEntryPrice(trade.entry_price?.toString() || "");
     setEditExitPrice(trade.exit_price?.toString() || "");
     setEditPips(trade.pips?.toString() || "");
-    setEditPL(trade.pl.toString());
+    setEditPL(trade.pl?.toString() || "0");
     setEditRiskPct(trade.risk_pct?.toString() || "");
     setEditRrPlanned(trade.rr_planned?.toString() || "");
     setEditRrActual(trade.rr_actual?.toString() || "");
-    setEditOutcome(trade.outcome);
-    setEditEmotion(trade.emotion || "disciplined");
+    setEditOutcome(trade.outcome || "WIN");        // Fixed: Fallback to prevent null select states [1]
+    setEditEmotion(trade.emotion || "disciplined"); // Fixed: Fallback to prevent null select states [1]
     setEditConfluence(trade.confluence_score?.toString() || "5");
-    setEditFollowedRules(trade.followed_rules);
-    setEditBeMoved(trade.be_moved);
+    setEditFollowedRules(trade.followed_rules ?? true);
+    setEditBeMoved(trade.be_moved ?? false);
     setEditNotes(trade.notes || "");
   };
 
+  // Save the edited trade [3]
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
@@ -207,6 +212,7 @@ export default function TradeHistory() {
     }
   };
 
+  // Auto-calculate pips inside the edit panel when prices blur [DESIGN (5).md]
   const handleEditPriceBlur = () => {
     const entry = parseFloat(editEntryPrice);
     const exit = parseFloat(editExitPrice);
@@ -231,7 +237,7 @@ export default function TradeHistory() {
     setEditPips(calculatedPips.toFixed(1));
   };
 
-  // Stats
+  // 1. Calculate stats dynamically inside the component scope (properly before first return!) [1]
   const totalPL = trades.reduce((sum, t) => sum + (t.pl || 0), 0);
   const closedTrades = trades.filter(t => ["WIN", "LOSS", "BE"].includes(t.outcome));
   const wins = closedTrades.filter(t => t.outcome === "WIN").length;
@@ -240,6 +246,14 @@ export default function TradeHistory() {
   const averageRR = rrTrades.length > 0 
     ? rrTrades.reduce((sum, t) => sum + (t.rr_actual || 0), 0) / rrTrades.length 
     : 0;
+
+  if (loading) {
+    return (
+      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest font-bold animate-pulse">
+        Loading private ledger...
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6 text-bone relative">
@@ -434,29 +448,89 @@ export default function TradeHistory() {
                         </td>
                       </tr>
 
-                      {/* Expandable Rows: Renders full 16-parameter metrics ledger details (colSpan set to exactly 8!) [DESIGN (5).md] */}
+                      {/* Expandable Rows: Renders full 16-parameter metrics ledger details + DYNAMIC USER CUSTOM PROPERTIES (colSpan set to exactly 8!) [DESIGN (5).md] */}
                       {isExpanded && (
                         <tr className="bg-graphite/40 border-b border-iron">
                           <td colSpan={8} className="p-6">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-bone max-w-4xl">
-                              <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
-                                <p className="text-[10px] text-ash uppercase font-bold">Psychology</p>
-                                <p className="text-xs"><strong className="text-ash">Emotion:</strong> <span className="capitalize">{trade.emotion || "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Confluence:</strong> <span className="font-mono">{trade.confluence_score || "—"}/10</span></p>
+                            <div className="flex flex-col gap-6 max-w-4xl">
+                              {/* Standard Details Row Grid */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-bone">
+                                <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
+                                  <p className="text-[10px] text-ash uppercase font-bold">Metrics</p>
+                                  <p className="text-xs"><strong className="text-ash">Entry:</strong> <span className="font-mono tabular-nums">{trade.entry_price || "—"}</span></p>
+                                  <p className="text-xs"><strong className="text-ash">Exit:</strong> <span className="font-mono tabular-nums">{trade.exit_price || "—"}</span></p>
+                                  <p className="text-xs"><strong className="text-ash">Pips:</strong> <span className="font-mono tabular-nums">{trade.pips || "—"} pips</span></p>
+                                </div>
+
+                                <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
+                                  <p className="text-[10px] text-ash uppercase font-bold">Risk Model</p>
+                                  <p className="text-xs"><strong className="text-ash">Risk %:</strong> <span className="font-mono">{trade.risk_pct ? `${trade.risk_pct}%` : "—"}</span></p>
+                                  <p className="text-xs"><strong className="text-ash">Planned RR:</strong> <span className="font-mono">{trade.rr_planned ? `${trade.rr_planned}R` : "—"}</span></p>
+                                </div>
+
+                                <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
+                                  <p className="text-[10px] text-ash uppercase font-bold">Discipline</p>
+                                  <p className="text-xs"><strong className="text-ash">Emotion:</strong> <span className="capitalize">{trade.emotion || "—"}</span></p>
+                                  <p className="text-xs"><strong className="text-ash">Confluence:</strong> <span className="font-mono">{trade.confluence_score || "—"}/10</span></p>
+                                </div>
+
+                                <div className="bg-inkwell p-3 border border-iron rounded-sm flex flex-col justify-between">
+                                  <p className="text-[10px] text-ash uppercase font-bold mb-1">Journal Review Notes</p>
+                                  <p className="text-xs text-ash leading-relaxed italic line-clamp-3">
+                                    "{trade.notes || "No additional observations logged."}"
+                                  </p>
+                                </div>
                               </div>
 
-                              <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
-                                <p className="text-[10px] text-ash uppercase font-bold">Risk Model</p>
-                                <p className="text-xs"><strong className="text-ash">Risk %:</strong> <span className="font-mono">{trade.risk_pct ? `${trade.risk_pct}%` : "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Planned RR:</strong> <span className="font-mono">{trade.rr_planned ? `${trade.rr_planned}R` : "—"}</span></p>
-                              </div>
+                              {/* 
+                                DYNAMIC CUSTOM PROPERTIES SHEET [3, DESIGN (5).md]
+                                Loops over the trade's custom_fields JSONB block and renders them dynamically based on user-defined types.
+                              */}
+                              {trade.custom_fields && Object.keys(trade.custom_fields).length > 0 && (
+                                <div className="pt-4 border-t border-iron/40 space-y-3">
+                                  <p className="text-[10px] text-ember-gold uppercase font-bold tracking-wider">Custom Properties Ledger</p>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {Object.keys(trade.custom_fields).map((key) => {
+                                      const customField = trade.custom_fields[key];
+                                      if (!customField || customField.value === undefined || customField.value === null || customField.value === "") return null;
 
-                              <div className="bg-inkwell p-3 border border-iron rounded-sm flex flex-col justify-between col-span-2">
-                                <p className="text-[10px] text-ash uppercase font-bold mb-1">Journal Review Notes</p>
-                                <p className="text-xs text-ash leading-relaxed italic line-clamp-3">
-                                  "{trade.notes || "No additional observations logged."}"
-                                </p>
-                              </div>
+                                      return (
+                                        <div key={key} className="bg-inkwell p-3 border border-iron rounded-sm space-y-1">
+                                          <span className="block text-[9px] font-bold text-ash uppercase tracking-wider">{key}</span>
+                                          {/* Render dynamically by custom type */}
+                                          {customField.type === "file" ? (
+                                            <a 
+                                              href={customField.value} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer" 
+                                              className="text-xs text-bone hover:text-white underline font-semibold block truncate max-w-[180px]"
+                                              title="Click to view full attachment"
+                                            >
+                                              View Attachment
+                                            </a>
+                                          ) : customField.type === "checkbox" ? (
+                                            <span className="text-xs font-mono text-bone font-bold">
+                                              {customField.value ? "TRUE" : "FALSE"}
+                                            </span>
+                                          ) : customField.type === "multi-select" && Array.isArray(customField.value) ? (
+                                            <div className="flex flex-wrap gap-1">
+                                              {customField.value.map((tag: string) => (
+                                                <span key={tag} className="bg-graphite text-bone text-[9px] px-2 py-0.5 rounded-full border border-iron/40">
+                                                  {tag}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs font-mono text-bone font-medium truncate block max-w-[180px]" title={String(customField.value)}>
+                                              {String(customField.value)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>

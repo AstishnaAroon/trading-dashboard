@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import LogoPrimary from "../../components/LogoPrimary";
 
@@ -210,7 +210,7 @@ export default function AdminPanel() {
             </a>
           </div>
 
-          {/* Column 2: Embedded PostHog Dashboard Portal (With standard unicode arrows instead of ->) */}
+          {/* Column 2: Embedded PostHog Dashboard Portal (With standard unicode arrows instead of ->) [1] */}
           <div className="col-span-12 lg:col-span-8 bg-slate border border-iron rounded-[10px] overflow-hidden flex flex-col h-[300px]">
             <div className="px-6 py-4 border-b border-iron bg-graphite/30 flex justify-between items-center">
               <div>
