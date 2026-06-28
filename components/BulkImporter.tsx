@@ -9,34 +9,43 @@ interface StrategyOption {
   name: string;
 }
 
-const REQUIRED_FIELDS = [
-  { key: "pair", label: "Currency Pair / Symbol" },
-  { key: "direction", label: "Trade Direction (Buy/Sell)" },
-  { key: "pl", label: "Net P&L ($)" },
-];
+interface AppField {
+  key: string;
+  label: string;
+  required: boolean;
+  description: string;
+}
 
-const OPTIONAL_FIELDS = [
-  { key: "date", label: "Date & Time" },
-  { key: "session", label: "Session" },
-  { key: "entry_price", label: "Entry Price" },
-  { key: "exit_price", label: "Exit Price" },
-  { key: "pips", label: "Pips" },
-  { key: "risk_pct", label: "Risk %" },
-  { key: "rr_actual", label: "Actual R:R" },
-  { key: "notes", label: "Notes" },
+// All standard fields supported by our Glide Private Ledger [DESIGN (5).md]
+const APP_FIELDS: AppField[] = [
+  { key: "pair", label: "Currency Pair / Symbol", required: true, description: "e.g. EUR/USD, GBP/USD, XAU/USD" },
+  { key: "direction", label: "Direction (Buy/Sell)", required: true, description: "LONG (Buy) or SHORT (Sell)" },
+  { key: "pl", label: "Net P&L ($)", required: true, description: "Monetary trade outcome" },
+  { key: "date", label: "Entry Date & Time", required: false, description: "Timestamp of entry" },
+  { key: "session", label: "Trading Session", required: false, description: "London, New York, Asian, etc." },
+  { key: "entry_price", label: "Entry Price", required: false, description: "Exact entry quote price" },
+  { key: "exit_price", label: "Exit Price", required: false, description: "Exact exit quote price" },
+  { key: "pips", label: "Pips Gained/Lost", required: false, description: "Fractional pips calculation" },
+  { key: "risk_pct", label: "Risk Percentage (%)", required: false, description: "Percent of balance at risk" },
+  { key: "rr_actual", label: "Actual R:R", required: false, description: "Risk-to-Reward ratio achieved" },
+  { key: "outcome", label: "Outcome", required: false, description: "WIN, LOSS, or BE" },
+  { key: "emotion", label: "Trading Emotion", required: false, description: "Disciplined, Greedy, FOMO, etc." },
+  { key: "notes", label: "Review Notes", required: false, description: "Detailed contextual logs" },
+  { key: "strategy_name", label: "Strategy Name", required: false, description: "Links trade to a Playbook Strategy" },
 ];
 
 export default function BulkImporter() {
   const { user } = useUser();
   const [step, setStep] = useState<"upload" | "map" | "confirm">("upload");
   const [strategies, setStrategies] = useState<StrategyOption[]>([]);
-  const [selectedStrategyId, setSelectedStrategyId] = useState<string>("");
 
-  // CSV Data States
+  // CSV Parsing States
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<{ [key: string]: string }>({});
-  const [selectedCustomFields, setSelectedCustomFields] = useState<string[]>([]);
+  
+  // Custom Fields Configuration States [3]
+  const [customFields, setCustomFields] = useState<{ [key: string]: { active: boolean; type: "text" | "number" | "date" | "select" } }>({});
 
   // Execution States
   const [loading, setLoading] = useState<boolean>(false);
@@ -60,12 +69,11 @@ export default function BulkImporter() {
     if (user) fetchStrategies();
   }, [user]);
 
-  // Robust, zero-dependency CSV Parser (handles quoted strings and commas safely!)
+  // Safe, CSV-compliant parser (respects quotes containing commas!)
   const parseCSV = (text: string) => {
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length === 0) return { headers: [], rows: [] };
 
-    // Standard CSV quote-compliant line splitting regex
     const splitLine = (line: string) => {
       const result = [];
       let current = "";
@@ -91,7 +99,6 @@ export default function BulkImporter() {
     return { headers, rows };
   };
 
-  // Handle local CSV file selection & reading
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -101,7 +108,7 @@ export default function BulkImporter() {
       const text = event.target?.result as string;
       const { headers, rows } = parseCSV(text);
       if (headers.length === 0) {
-        setErrorMsg("Failed to parse CSV. Make sure the file is not empty.");
+        setErrorMsg("Failed to parse CSV. Make sure the file has headers.");
         return;
       }
 
@@ -109,30 +116,64 @@ export default function BulkImporter() {
       setCsvRows(rows);
       setErrorMsg("");
 
-      // Automatically pre-map columns if they have similar names
+      // Auto pre-map headers with identical names
       const initialMapping: { [key: string]: string } = {};
-      [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach((field) => {
+      APP_FIELDS.forEach((field) => {
         const match = headers.find(
           (h) => h.toLowerCase() === field.key.toLowerCase() || h.toLowerCase().includes(field.key.toLowerCase())
         );
         if (match) initialMapping[field.key] = match;
       });
 
+      // Initialize all unmapped columns as inactive text custom fields [3]
+      const initialCustomFields: any = {};
+      headers.forEach((h) => {
+        const isMapped = Object.values(initialMapping).includes(h);
+        if (!isMapped) {
+          initialCustomFields[h] = { active: false, type: "text" };
+        }
+      });
+
       setMapping(initialMapping);
+      setCustomFields(initialCustomFields);
       setStep("map");
     };
 
     reader.readAsText(file);
   };
 
-  // Toggle custom fields checkbox selection
+  // Toggle custom field active state
   const handleToggleCustomField = (headerName: string) => {
-    setSelectedCustomFields((prev) =>
-      prev.includes(headerName) ? prev.filter((f) => f !== headerName) : [...prev, headerName]
-    );
+    setCustomFields((prev) => ({
+      ...prev,
+      [headerName]: {
+        ...prev[headerName],
+        active: !prev[headerName]?.active,
+      },
+    }));
   };
 
-  // Execute the bulk database import [1, 3]
+  // Change custom field type (text, number, date, select) [3]
+  const handleCustomFieldTypeChange = (headerName: string, type: "text" | "number" | "date" | "select") => {
+    setCustomFields((prev) => ({
+      ...prev,
+      [headerName]: {
+        ...prev[headerName],
+        type,
+      },
+    }));
+  };
+
+  // Defensive Numeric Sanitizer (Strips out raw currency formatting like $2,500.00 to prevent db type crashes)
+  const parseNumericSafe = (value: string | undefined): number | null => {
+    if (!value) return null;
+    // Remove dollar signs, commas, or spaces
+    const cleaned = value.replace(/[$,\s]/g, "");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  };
+
+  // Execute the secure bulk database import [1, 3]
   const handleImport = async () => {
     if (!user) return;
     setLoading(true);
@@ -140,41 +181,66 @@ export default function BulkImporter() {
 
     const tradesPayload: any[] = [];
 
-    // Loop through parsed CSV rows and build the insert payload [3]
+    // Loop through CSV rows and map data safely
     for (const row of csvRows) {
-      const getVal = (fieldKey: string) => {
+      const getRawValue = (fieldKey: string) => {
         const mappedHeader = mapping[fieldKey];
         if (!mappedHeader) return undefined;
         const colIdx = csvHeaders.indexOf(mappedHeader);
         return colIdx !== -1 ? row[colIdx] : undefined;
       };
 
-      // Map required parameters
-      const pairVal = getVal("pair");
-      const directionVal = getVal("direction")?.toUpperCase() || "LONG";
-      const plVal = parseFloat(getVal("pl") || "0") || 0;
+      const pairVal = getRawValue("pair");
+      const directionVal = getRawValue("direction")?.toUpperCase() || "LONG";
+      const plVal = parseNumericSafe(getRawValue("pl")) || 0;
 
-      if (!pairVal) continue; // Skip incomplete lines
+      if (!pairVal) continue; // Skip empty rows
 
-      // Clean Direction mapping (convert Buy/Long -> LONG, Sell/Short -> SHORT)
+      // Map direction safely
       const cleanDirection = directionVal.includes("SELL") || directionVal.includes("SHORT") ? "SHORT" : "LONG";
 
-      // Map optional parameters
-      const dateVal = getVal("date");
-      const sessionVal = getVal("session") || "London";
-      const entryVal = parseFloat(getVal("entry_price") || "") || null;
-      const exitVal = parseFloat(getVal("exit_price") || "") || null;
-      const pipsVal = parseFloat(getVal("pips") || "") || null;
-      const riskVal = parseFloat(getVal("risk_pct") || "") || null;
-      const rrVal = parseFloat(getVal("rr_actual") || "") || null;
-      const notesVal = getVal("notes") || null;
+      // Map optional fields safely
+      const dateVal = getRawValue("date");
+      const sessionVal = getRawValue("session") || "London";
+      const entryVal = parseNumericSafe(getRawValue("entry_price"));
+      const exitVal = parseNumericSafe(getRawValue("exit_price"));
+      const pipsVal = parseNumericSafe(getRawValue("pips"));
+      const riskVal = parseNumericSafe(getRawValue("risk_pct"));
+      const rrVal = parseNumericSafe(getRawValue("rr_actual"));
+      const notesVal = getRawValue("notes") || null;
+      const strategyNameVal = getRawValue("strategy_name");
 
-      // DYNAMIC CUSTOM FIELDS: Build JSON object for unmapped, selected custom fields [3]
-      const customFieldsJson: { [key: string]: any } = {};
-      selectedCustomFields.forEach((headerName) => {
-        const colIdx = csvHeaders.indexOf(headerName);
-        if (colIdx !== -1 && row[colIdx]) {
-          customFieldsJson[headerName] = row[colIdx];
+      // DYNAMIC STRATEGY LOOKUP: Link the trade to a database strategy if the name matches! [3]
+      let matchedStrategyId: string | null = null;
+      if (strategyNameVal) {
+        const match = strategies.find(
+          (s) => s.name.toLowerCase() === strategyNameVal.toLowerCase() || s.name.toLowerCase().includes(strategyNameVal.toLowerCase())
+        );
+        if (match) matchedStrategyId = match.id;
+      }
+
+      // DYNAMIC TYPED CUSTOM FIELDS: Pack checked unmapped columns into a typed JSON object [3]
+      const customFieldsJson: { [key: string]: { value: any; type: string } } = {};
+      Object.keys(customFields).forEach((headerName) => {
+        const fieldConfig = customFields[headerName];
+        if (fieldConfig?.active) {
+          const colIdx = csvHeaders.indexOf(headerName);
+          if (colIdx !== -1 && row[colIdx]) {
+            const rawVal = row[colIdx];
+            let typedVal: any = rawVal;
+
+            // Safe cast values based on their user-defined type [3]
+            if (fieldConfig.type === "number") {
+              typedVal = parseFloat(rawVal) || 0;
+            } else if (fieldConfig.type === "date") {
+              typedVal = new Date(rawVal).toISOString();
+            }
+
+            customFieldsJson[headerName] = {
+              value: typedVal,
+              type: fieldConfig.type, // Stores type metadata so we can render custom selectors in our admin/edit panels! [3]
+            };
+          }
         }
       });
 
@@ -184,27 +250,28 @@ export default function BulkImporter() {
         pair: pairVal,
         direction: cleanDirection,
         session: sessionVal,
-        strategy_id: selectedStrategyId || null,
+        strategy_id: matchedStrategyId,
         entry_price: entryVal,
         exit_price: exitVal,
         pips: pipsVal,
         pl: plVal,
         risk_pct: riskVal,
+        rr_planned: null, // Keep null or calculate later
         rr_actual: rrVal,
-        outcome: plVal > 0 ? "WIN" : plVal < 0 ? "LOSS" : "BE", // Smart outcome calculation based on P&L
+        outcome: plVal >= 0 ? "WIN" : "LOSS", // Auto outcome fallback based on sanitized P&L
         notes: notesVal,
-        custom_fields: customFieldsJson, // Saved completely securely into our JSONB column! [3]
+        custom_fields: customFieldsJson, // Securely written to PostgreSQL JSONB column [3]
         is_backtest: false,
       });
     }
 
-    // Insert payload in bulk to Supabase [3]
+    // Bulk insert to Supabase [3]
     const { error } = await supabase.from("trades").insert(tradesPayload);
 
     setLoading(false);
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(error.message); // Exposes exact db compilation issues so we can catch them!
     } else {
       setImportCount(tradesPayload.length);
       setSuccess(true);
@@ -217,22 +284,26 @@ export default function BulkImporter() {
     setCsvHeaders([]);
     setCsvRows([]);
     setMapping({});
-    setSelectedCustomFields([]);
+    setCustomFields({});
     setSuccess(false);
     setErrorMsg("");
   };
 
   return (
-    <div className="w-full max-w-xl bg-slate border border-iron rounded-[10px] p-6 text-bone">
+    <div className="w-full bg-slate border border-iron rounded-[10px] p-6 text-bone">
       {/* Title */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-[14px] font-bold uppercase tracking-widest text-ash">Bulk CSV Importer</h3>
-        <span className="material-symbols-outlined text-ash text-[18px]">file_upload</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#777a88" strokeWidth="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
       </div>
 
       {errorMsg && (
-        <div className="bg-graphite border border-ember-gold text-ember-gold text-xs p-3 rounded-sm mb-4 text-center">
-          Error: {errorMsg}
+        <div className="bg-graphite border border-ember-gold text-ember-gold text-xs p-3 rounded-sm mb-4 text-center font-mono">
+          Database Error: {errorMsg}
         </div>
       )}
 
@@ -250,14 +321,19 @@ export default function BulkImporter() {
               onChange={handleFileChange}
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             />
-            <span className="material-symbols-outlined text-ash text-3xl mb-3">upload_file</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#777a88" strokeWidth="1.5" className="mb-3">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
             <p className="text-sm font-semibold mb-1">Select CSV File</p>
             <p className="text-[11px] text-ash">Supports OANDA, TradingView, MetaTrader, or custom sheets.</p>
           </div>
         </div>
       )}
 
-      {/* STEP 2: Column Mapping & Custom Fields Selection */}
+      {/* STEP 2: Custom Mapping & Type Builder Wizard [3] */}
       {step === "map" && (
         <div className="space-y-6">
           <div className="bg-graphite/40 border border-iron p-4 rounded-sm">
@@ -267,106 +343,137 @@ export default function BulkImporter() {
             </p>
           </div>
 
-          <div className="space-y-4">
-            <h5 className="text-[11px] font-bold text-ash uppercase tracking-wider">Required Fields</h5>
+          <div className="space-y-5 max-h-[380px] overflow-y-auto pr-1 scrollbar-none">
+            {/* Standard Fields Section */}
             <div className="space-y-3">
-              {REQUIRED_FIELDS.map((field) => (
-                <div key={field.key} className="grid grid-cols-2 gap-4 items-center">
-                  <span className="text-xs font-semibold text-bone">{field.label}*</span>
-                  <select
-                    value={mapping[field.key] || ""}
-                    onChange={(e) => setMapping({ ...mapping, [field.key]: e.target.value })}
-                    className="bg-graphite border border-iron text-bone text-xs px-3 py-2 rounded-sm outline-none"
-                    required
-                  >
-                    <option value="">-- Choose Column --</option>
-                    {csvHeaders.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              <h5 className="text-[11px] font-bold text-ash uppercase tracking-wider">Database Fields Mapping</h5>
+              {APP_FIELDS.map((field) => {
+                const isMapped = !!mapping[field.key];
+                return (
+                  <div key={field.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-graphite border border-iron rounded-sm">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-bone">{field.label}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
+                          field.required ? "bg-ember-gold/20 text-ember-gold" : "bg-steel text-pearl"
+                        }`}>
+                          {field.required ? "Required" : "Optional"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-ash mt-0.5">{field.description}</p>
+                    </div>
+
+                    <select
+                      value={mapping[field.key] || ""}
+                      onChange={(e) => {
+                        const newMap = { ...mapping, [field.key]: e.target.value };
+                        setMapping(newMap);
+                        
+                        // Recalculate unmapped columns
+                        const newCustomFields = { ...customFields };
+                        if (e.target.value) {
+                          delete newCustomFields[e.target.value];
+                        }
+                        setCustomFields(newCustomFields);
+                      }}
+                      className="bg-inkwell border border-iron text-bone text-xs px-3 py-2 rounded-sm outline-none w-full sm:w-[180px] appearance-none"
+                    >
+                      <option value="">-- Ignored --</option>
+                      {csvHeaders.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
 
-            <h5 className="text-[11px] font-bold text-ash uppercase tracking-wider pt-2 border-t border-iron/50">Optional Fields</h5>
-            <div className="space-y-3 max-h-48 overflow-y-auto scrollbar-none pr-1">
-              {OPTIONAL_FIELDS.map((field) => (
-                <div key={field.key} className="grid grid-cols-2 gap-4 items-center">
-                  <span className="text-xs text-ash">{field.label}</span>
-                  <select
-                    value={mapping[field.key] || ""}
-                    onChange={(e) => setMapping({ ...mapping, [field.key]: e.target.value })}
-                    className="bg-graphite border border-iron text-bone text-xs px-3 py-2 rounded-sm outline-none"
-                  >
-                    <option value="">-- Ignored / Empty --</option>
-                    {csvHeaders.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            {/* DYNAMIC CUSTOM FIELDS SELECTION [3] */}
-            <div className="pt-4 border-t border-iron/50">
-              <h5 className="text-[11px] font-bold text-ash uppercase tracking-wider mb-2">
-                Unmapped Columns (Save as Custom Fields)
+            {/* DYNAMIC CUSTOM FIELDS SECTION with custom type builder dropdowns [3] */}
+            <div className="pt-4 border-t border-iron/50 space-y-3">
+              <h5 className="text-[11px] font-bold text-ash uppercase tracking-wider">
+                Unmapped Columns (Smart Custom Fields)
               </h5>
-              <p className="text-[10px] text-ash mb-3 leading-relaxed">
-                Check any unmapped columns you want our system to smartly save as custom fields for your account [3]:
+              <p className="text-[10px] text-ash leading-relaxed">
+                Check any remaining columns to create a brand-new custom field for your account, and choose its variable type [3]:
               </p>
-              
-              {/* Find unmapped columns */}
+
               {csvHeaders.filter(h => !Object.values(mapping).includes(h)).length === 0 ? (
-                <p className="text-xs text-ash italic">No unmapped columns remaining.</p>
+                <p className="text-xs text-ash italic text-center py-2">No unmapped columns remaining.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-2 bg-graphite/20 p-3 border border-iron rounded-sm max-h-32 overflow-y-auto scrollbar-none">
+                <div className="space-y-2">
                   {csvHeaders
                     .filter((h) => !Object.values(mapping).includes(h))
-                    .map((header) => (
-                      <label key={header} className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={selectedCustomFields.includes(header)}
-                          onChange={() => handleToggleCustomField(header)}
-                          className="w-3.5 h-3.5 rounded-sm bg-graphite border-iron accent-ember-gold"
-                        />
-                        <span className="text-xs text-bone truncate" title={header}>{header}</span>
-                      </label>
-                    ))}
+                    .map((h) => {
+                      const alertConfig = customFields[h] || { active: false, type: "text" };
+                      const isActive = alertConfig.active;
+
+                      return (
+                        <div key={h} className="flex items-center justify-between gap-4 p-3 bg-graphite border border-iron rounded-sm">
+                          {/* Checked trigger */}
+                          <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={isActive}
+                              onChange={(e) => {
+                                setCustomFields({
+                                  ...customFields,
+                                  [h]: { active: e.target.checked, type: alertConfig.type || "text" }
+                                });
+                              }}
+                              className="sr-only"
+                            />
+                            <div className={`w-4 h-4 rounded-sm border flex items-center justify-center ${
+                              isActive ? "bg-white border-white text-inkwell" : "bg-inkwell border-iron"
+                            }`}>
+                              {isActive && (
+                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M1 4L4 7L9 1" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-bone truncate max-w-[120px]">{h}</span>
+                          </label>
+
+                          {/* Variable Type Builder Dropdown (Visible only if checked) [3] */}
+                          {isActive && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-bold text-ash uppercase">Type:</span>
+                              <select
+                                value={alertConfig.type}
+                                onChange={(e) => {
+                                  setCustomFields({
+                                    ...customFields,
+                                    [h]: { active: true, type: e.target.value as any }
+                                  });
+                                }}
+                                className="bg-inkwell border border-iron text-bone text-[11px] px-2 py-1 rounded-sm outline-none appearance-none"
+                              >
+                                <option value="text">Text (String)</option>
+                                <option value="number">Number (Float)</option>
+                                <option value="date">Date & Time</option>
+                                <option value="select">Dropdown</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>
-
-            {/* Default Strategy to Apply */}
-            <div className="pt-4 border-t border-iron/50">
-              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">
-                Apply default Playbook Strategy (Optional)
-              </label>
-              <select
-                value={selectedStrategyId}
-                onChange={(e) => setSelectedStrategyId(e.target.value)}
-                className="w-full bg-graphite border border-iron text-bone text-xs px-3 py-2 rounded-sm focus:border-ember-gold"
-              >
-                <option value="">No Strategy (Discretionary Setup)</option>
-                {strategies.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-4 border-t border-iron/50">
             <button
               onClick={handleReset}
-              className="flex-1 bg-graphite border border-iron text-bone h-12 font-bold text-[13px] rounded-sm hover:bg-slate transition-all"
+              className="flex-1 bg-graphite border border-iron text-bone h-12 font-bold text-[13px] rounded-sm hover:bg-slate transition-all cursor-pointer"
             >
               CANCEL
             </button>
             <button
               onClick={handleImport}
               disabled={loading || !mapping.pair || !mapping.direction || !mapping.pl}
-              className="flex-grow bg-white text-inkwell h-12 font-bold text-[13px] rounded-sm hover:bg-bone transition-all uppercase tracking-wider"
+              className="flex-grow bg-white text-inkwell h-12 font-bold text-[13px] rounded-sm hover:bg-bone transition-all uppercase tracking-wider cursor-pointer"
             >
               {loading ? "Importing..." : `Import ${csvRows.length} Trades`}
             </button>
@@ -378,22 +485,25 @@ export default function BulkImporter() {
       {step === "confirm" && (
         <div className="space-y-6 text-center py-4">
           <div className="w-16 h-16 bg-graphite border border-iron rounded-full flex items-center justify-center mx-auto text-bone mb-4">
-            <span className="material-symbols-outlined text-3xl">done_all</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
           </div>
           <div className="space-y-2">
             <h4 className="font-bold text-lg text-bone">Import Completed Successfully</h4>
             <p className="text-xs text-ash leading-relaxed">
               We have successfully decrypted and written <strong className="text-bone">{importCount} trades</strong> directly to your private secure ledger [3]!
             </p>
-            {selectedCustomFields.length > 0 && (
+            {Object.values(customFields).filter(f => f.active).length > 0 && (
               <p className="text-[10px] text-ember-gold leading-relaxed">
-                Smart mapping registered <strong className="text-white">{selectedCustomFields.length} custom fields</strong> ({selectedCustomFields.join(", ")}) into your account's JSONB block [3]!
+                Smart mapping registered <strong className="text-white">{Object.values(customFields).filter(f => f.active).length} custom fields</strong> into your account's JSONB block [3]!
               </p>
             )}
           </div>
           <button
             onClick={handleReset}
-            className="w-full bg-white text-inkwell h-12 font-bold text-[13px] rounded-sm hover:bg-bone transition-colors uppercase tracking-wider"
+            className="w-full bg-white text-inkwell h-12 font-bold text-[13px] rounded-sm hover:bg-bone transition-colors uppercase tracking-wider cursor-pointer"
           >
             Start New Import
           </button>

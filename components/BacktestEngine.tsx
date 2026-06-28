@@ -37,7 +37,6 @@ const OUTCOMES = ["WIN", "LOSS", "BE"];
 const SESSIONS = ["London", "New York", "Asian", "Overnight"];
 const EMOTIONS = ["disciplined", "greedy", "fearful", "fomo", "impatient", "anxious"];
 
-// Helper function to format current local time to "YYYY-MM-DDThh:mm" [3]
 const getLocalISODateTime = () => {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
@@ -52,7 +51,7 @@ export default function BacktestEngine() {
   const [success, setSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // UI state controllers [3]
+  // UI state controllers
   const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
   const [editingTrade, setEditingTrade] = useState<BacktestTrade | null>(null);
   const [saveLoading, setSavingLoading] = useState<boolean>(false);
@@ -164,14 +163,14 @@ export default function BacktestEngine() {
 
     const backtestData = {
       user_id: user.id,
-      date: new Date(date).toISOString(), // Saves custom simulation timestamp [3]
+      date: new Date(date).toISOString(),
       pair,
       direction,
       session,
       strategy_id: strategyId || null,
       pl: parseFloat(pl) || 0,
       risk_pct: parseFloat(riskPct) || null,
-      rr_planned: parseFloat(rrPlanned) || null,
+      rr_planned: null,
       rr_actual: parseFloat(rrActual) || null,
       outcome,
       emotion,
@@ -192,7 +191,6 @@ export default function BacktestEngine() {
       setSuccess(true);
       setPl("0");
       setRiskPct("");
-      setRrPlanned("");
       setRrActual("");
       setNotes("");
       setStrategyId("");
@@ -298,14 +296,6 @@ export default function BacktestEngine() {
   const wins = closedTrades.filter((t) => t.outcome === "WIN").length;
   const simulatedWinRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
 
-  if (loading) {
-    return (
-      <div className="w-full text-center py-8 text-ash text-xs uppercase tracking-widest font-bold">
-        Loading backtesting sandbox...
-      </div>
-    );
-  }
-
   return (
     <div className="w-full bg-slate border border-iron rounded-[10px] overflow-hidden text-bone">
       {/* Header and Tabs */}
@@ -395,7 +385,7 @@ export default function BacktestEngine() {
               </div>
             ) : (
               <div className="overflow-x-auto scrollbar-none relative">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+                <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead className="bg-inkwell/50">
                     <tr className="border-b border-iron text-ash">
                       <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Date / Pair / Strategy</th>
@@ -403,7 +393,7 @@ export default function BacktestEngine() {
                       <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
                       <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider">Actual RR</th>
                       <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-right">P&L ($)</th>
-                      <th className="py-3.5 px-4 text-center text-[11px] font-bold uppercase tracking-wider sticky right-0 bg-inkwell border-l border-iron z-20 w-[120px]">Actions</th>
+                      <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider sticky right-0 bg-inkwell border-l border-iron z-20 w-[120px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-iron">
@@ -566,7 +556,9 @@ export default function BacktestEngine() {
             <div className="relative">
               <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Direction</label>
               <div
-                onClick={() => setActiveDropdown(activeDropdown === "direction" ? null : "direction")}
+                onClick={() => {
+                  setActiveDropdown(activeDropdown === "direction" ? null : "direction");
+                }}
                 className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm flex items-center justify-between cursor-pointer select-none"
               >
                 <span className="font-semibold">{direction === "LONG" ? "BUY (LONG)" : "SELL (SHORT)"}</span>
@@ -597,7 +589,7 @@ export default function BacktestEngine() {
             </div>
           </div>
 
-          {/* Row 2: Strategy Selector & Outcome Custom Selects */}
+          {/* Row 2: Strategy Selector & Outcome */}
           <div className="grid grid-cols-2 gap-4">
             <div className="relative">
               <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Strategy Playbook Tested</label>
@@ -617,22 +609,20 @@ export default function BacktestEngine() {
                       setStrategyId("");
                       setActiveDropdown(null);
                     }}
-                    className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${strategyId === "" ? "bg-graphite text-white font-bold" : ""}`}
+                    className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${strategyId === "" ? "bg-graphite font-bold" : ""}`}
                   >
                     Discretionary Setup
                   </div>
-                  {strategies.map((strat) => (
+                  {strategies.map((s) => (
                     <div
-                      key={strat.id}
+                      key={s.id}
                       onClick={() => {
-                        setStrategyId(strat.id);
+                        setStrategyId(s.id);
                         setActiveDropdown(null);
                       }}
-                      className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${
-                        strategyId === strat.id ? "bg-graphite text-white font-bold" : ""
-                      }`}
+                      className={`px-4 py-2.5 text-xs text-bone hover:bg-slate cursor-pointer ${strategyId === s.id ? "bg-graphite font-bold" : ""}`}
                     >
-                      {strat.name}
+                      {s.name}
                     </div>
                   ))}
                 </div>
@@ -670,13 +660,13 @@ export default function BacktestEngine() {
           {/* Row 3: P&L, Risk %, Actual RR */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Simulated P&L ($)</label>
+              <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold font-mono">Simulated P&L ($)</label>
               <input
                 type="number"
                 step="0.01"
                 value={pl}
                 onChange={(e) => setPl(e.target.value)}
-                className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold focus:ring-0 outline-none font-mono"
+                className="w-full bg-graphite border border-iron rounded-sm px-3 py-2 text-xs text-bone focus:border-ember-gold"
                 required
               />
             </div>

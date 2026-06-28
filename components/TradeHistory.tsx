@@ -109,7 +109,6 @@ export default function TradeHistory() {
     setLoading(false);
   };
 
-  // Fetch strategies to populate dropdown in Edit Drawer [3]
   const fetchStrategies = async () => {
     const { data, error } = await supabase
       .from("strategies")
@@ -127,7 +126,6 @@ export default function TradeHistory() {
     }
   }, [user]);
 
-  // Handle trade deletion [3]
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this entry?");
@@ -141,14 +139,12 @@ export default function TradeHistory() {
     }
   };
 
-  // Convert date string from Database to local HTML input format "YYYY-MM-DDThh:mm" [3]
   const formatDateTimeLocal = (dateStr: string) => {
     const dateObj = new Date(dateStr);
     const offset = dateObj.getTimezoneOffset() * 60000;
     return new Date(dateObj.getTime() - offset).toISOString().slice(0, 16);
   };
 
-  // Open the custom slide-over edit panel & populate states [3]
   const handleStartEdit = (trade: Trade, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTrade(trade);
@@ -172,7 +168,6 @@ export default function TradeHistory() {
     setEditNotes(trade.notes || "");
   };
 
-  // Save the edited trade [3]
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
@@ -212,7 +207,6 @@ export default function TradeHistory() {
     }
   };
 
-  // Auto-calculate pips inside the edit panel when prices blur [DESIGN (5).md]
   const handleEditPriceBlur = () => {
     const entry = parseFloat(editEntryPrice);
     const exit = parseFloat(editExitPrice);
@@ -322,17 +316,18 @@ export default function TradeHistory() {
             No trades recorded yet. Fill out the Trade Logger form to make your first entry.
           </div>
         ) : (
-          /* Scrollbar hidden horizontal sliding wrapper [DESIGN (5).md] */
+          /* Scrollbar hidden horizontal sliding wrapper - 8 columns strictly aligned! [DESIGN (5).md] */
           <div className="overflow-x-auto overflow-y-hidden scrollbar-none relative">
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead className="bg-inkwell/50">
                 <tr className="border-b border-iron text-ash">
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Date / Pair / Strategy</th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Session / Emotion</th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Rules Adhered</th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Outcome</th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">R:R (P / A)</th>
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-right">Net P&L</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Date & Pair</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Execution</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Pricing</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Sizing</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">R:R</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">Rules & BE</th>
+                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-right">Net Outcome</th>
                   {/* Sticky locked Actions Header [DESIGN (5).md] */}
                   <th className="py-4 px-4 text-center text-[11px] font-bold uppercase tracking-wider sticky right-0 bg-inkwell border-l border-iron z-20 w-[120px]">Actions</th>
                 </tr>
@@ -343,12 +338,12 @@ export default function TradeHistory() {
 
                   return (
                     <React.Fragment key={trade.id}>
-                      {/* Interactive Row */}
+                      {/* Main Data Row */}
                       <tr 
                         onClick={() => setExpandedTradeId(isExpanded ? null : trade.id)}
                         className="hover:bg-inkwell/30 transition-colors cursor-pointer"
                       >
-                        {/* 1. Date / Pair / Strategy (Stacked) [DESIGN (5).md] */}
+                        {/* 1. Date & Pair (col 1) */}
                         <td className="px-6 py-4">
                           <div className="font-bold text-bone text-[15px]">{trade.pair}</div>
                           <div className="text-[10px] text-ash font-medium truncate max-w-[150px]">
@@ -364,16 +359,38 @@ export default function TradeHistory() {
                           </div>
                         </td>
 
-                        {/* 2. Session / Emotion [DESIGN (5).md] */}
+                        {/* 2. Execution (col 2) */}
                         <td className="px-6 py-4">
-                          <div className="text-bone text-[13px] font-medium capitalize">{trade.session || "—"}</div>
-                          <div className="text-[10px] text-ash capitalize mt-0.5">{trade.emotion || "—"}</div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            trade.direction === "LONG" ? "bg-graphite border border-iron text-bone" : "bg-graphite border border-iron text-ember-gold"
+                          }`}>
+                            {trade.direction === "LONG" ? "BUY" : "SELL"}
+                          </span>
+                          <div className="text-[10px] text-ash capitalize mt-1.5">{trade.session || "—"} Session</div>
                         </td>
 
-                        {/* 3. Rules & BE [DESIGN (5).md] */}
+                        {/* 3. Pricing (col 3) */}
+                        <td className="px-6 py-4 text-xs space-y-1">
+                          <p><span className="text-ash font-medium">In:</span> <span className="font-mono text-bone">{trade.entry_price || "—"}</span></p>
+                          <p><span className="text-ash font-medium">Out:</span> <span className="font-mono text-bone">{trade.exit_price || "—"}</span></p>
+                        </td>
+
+                        {/* 4. Sizing (col 4) */}
+                        <td className="px-6 py-4 text-xs space-y-1">
+                          <p><span className="text-ash font-medium">Risk:</span> <span className="font-mono text-bone">{trade.risk_pct ? `${trade.risk_pct}%` : "—"}</span></p>
+                          <p><span className="text-ash font-medium">Pips:</span> <span className="font-mono text-bone">{trade.pips !== null ? `${trade.pips > 0 ? "+" : ""}${trade.pips}` : "—"}</span></p>
+                        </td>
+
+                        {/* 5. R:R (col 5) */}
+                        <td className="px-6 py-4 tabular-nums text-[13px] text-bone font-mono space-y-1">
+                          <div><span className="text-ash text-[10px]">Act:</span> <strong>{trade.rr_actual ? `${trade.rr_actual.toFixed(1)}R` : "—"}</strong></div>
+                          <div className="text-[10px] text-ash">Plan: {trade.rr_planned ? `${trade.rr_planned.toFixed(1)}R` : "—"}</div>
+                        </td>
+
+                        {/* 6. Rules & BE (col 6) */}
                         <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <span className={`text-[10px] font-bold tracking-wider inline-block w-fit px-1.5 py-0.5 rounded-sm ${
+                          <div className="flex flex-col gap-1.5">
+                            <span className={`text-[9px] font-bold tracking-wider inline-block w-fit px-1.5 py-0.5 rounded-sm ${
                               trade.followed_rules ? "bg-graphite text-bone border border-iron" : "bg-graphite text-ember-gold border border-iron"
                             }`}>
                               {trade.followed_rules ? "RULES MET" : "RULES VIOLATED"}
@@ -386,31 +403,19 @@ export default function TradeHistory() {
                           </div>
                         </td>
 
-                        {/* 4. Outcome Tag [DESIGN (5).md] */}
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            trade.outcome === "WIN" 
-                              ? "bg-graphite border-iron text-bone" 
-                              : "bg-graphite border-iron text-ember-gold"
-                          }`}>
-                            {trade.outcome}
-                          </span>
-                        </td>
-
-                        {/* 5. Planned & Actual R:R [DESIGN (5).md] */}
-                        <td className="px-6 py-4 tabular-nums text-[13px] text-bone font-mono">
-                          <div className="font-semibold">{trade.rr_actual ? `${trade.rr_actual.toFixed(1)}R` : "—"}</div>
-                          <div className="text-[9px] text-ash mt-0.5">Plan: {trade.rr_planned ? `${trade.rr_planned.toFixed(1)}R` : "—"}</div>
-                        </td>
-
-                        {/* 6. Net P&L (Tabular Numbers) [DESIGN (5).md] */}
+                        {/* 7. Net P&L (col 7) */}
                         <td className={`px-6 py-4 tabular-nums text-[15px] font-medium text-right ${
                           trade.pl >= 0 ? "text-bone" : "text-ember-gold"
                         }`}>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm border block w-fit ml-auto mb-1 ${
+                            trade.pl >= 0 ? "bg-graphite border-iron text-bone" : "bg-graphite border-iron text-ember-gold"
+                          }`}>
+                            {trade.outcome}
+                          </span>
                           {trade.pl >= 0 ? "+" : "−"}${Math.abs(trade.pl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
-                        {/* 7. Sticky Actions Column (Wiped of Material Font Icons) [DESIGN (5).md] */}
+                        {/* 8. Sticky Locked Actions Cell (col 8) [DESIGN (5).md] */}
                         <td className="py-4 px-4 text-center sticky right-0 bg-slate border-l border-iron z-10 w-[120px]">
                           <div className="flex items-center justify-center gap-3">
                             <button
@@ -429,30 +434,25 @@ export default function TradeHistory() {
                         </td>
                       </tr>
 
-                      {/* Expandable Rows: Renders full 16-parameter metrics ledger details [DESIGN (5).md] */}
+                      {/* Expandable Rows: Renders full 16-parameter metrics ledger details (colSpan set to exactly 8!) [DESIGN (5).md] */}
                       {isExpanded && (
                         <tr className="bg-graphite/40 border-b border-iron">
-                          <td colSpan={7} className="p-6">
+                          <td colSpan={8} className="p-6">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm text-bone max-w-4xl">
-                              {/* Left block: prices */}
                               <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
-                                <p className="text-[10px] text-ash uppercase font-bold">Metrics</p>
-                                <p className="text-xs"><strong className="text-ash">Entry:</strong> <span className="font-mono tabular-nums">{trade.entry_price || "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Exit:</strong> <span className="font-mono tabular-nums">{trade.exit_price || "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Pips:</strong> <span className="font-mono tabular-nums">{trade.pips || "—"} pips</span></p>
+                                <p className="text-[10px] text-ash uppercase font-bold">Psychology</p>
+                                <p className="text-xs"><strong className="text-ash">Emotion:</strong> <span className="capitalize">{trade.emotion || "—"}</span></p>
+                                <p className="text-xs"><strong className="text-ash">Confluence:</strong> <span className="font-mono">{trade.confluence_score || "—"}/10</span></p>
                               </div>
 
-                              {/* Mid block: Risk */}
                               <div className="space-y-1 bg-inkwell p-3 border border-iron rounded-sm">
                                 <p className="text-[10px] text-ash uppercase font-bold">Risk Model</p>
                                 <p className="text-xs"><strong className="text-ash">Risk %:</strong> <span className="font-mono">{trade.risk_pct ? `${trade.risk_pct}%` : "—"}</span></p>
                                 <p className="text-xs"><strong className="text-ash">Planned RR:</strong> <span className="font-mono">{trade.rr_planned ? `${trade.rr_planned}R` : "—"}</span></p>
-                                <p className="text-xs"><strong className="text-ash">Confluence:</strong> <span className="font-mono">{trade.confluence_score || "—"}/10</span></p>
                               </div>
 
-                              {/* Extensive Notes */}
                               <div className="bg-inkwell p-3 border border-iron rounded-sm flex flex-col justify-between col-span-2">
-                                <p className="text-[10px] text-ash uppercase font-bold mb-1">Journal Review</p>
+                                <p className="text-[10px] text-ash uppercase font-bold mb-1">Journal Review Notes</p>
                                 <p className="text-xs text-ash leading-relaxed italic line-clamp-3">
                                   "{trade.notes || "No additional observations logged."}"
                                 </p>
@@ -483,7 +483,6 @@ export default function TradeHistory() {
           <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
             <div className="pointer-events-auto w-screen max-w-md bg-slate border-l border-iron flex flex-col justify-between">
               
-              {/* Drawer Header */}
               <div className="px-6 py-5 border-b border-iron bg-graphite/40 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-bone">Edit Ledger Entry</h3>
@@ -554,7 +553,7 @@ export default function TradeHistory() {
                 {/* Strategy and Outcome */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Setup / Strategy</label>
+                    <label className="block text-[11px] text-ash mb-1.5 uppercase font-bold">Strategy Tested</label>
                     <select
                       value={editStrategyId}
                       onChange={(e) => setEditStrategyId(e.target.value)}
@@ -572,7 +571,7 @@ export default function TradeHistory() {
                     <select
                       value={editOutcome}
                       onChange={(e) => setEditOutcome(e.target.value)}
-                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold focus:ring-0 outline-none appearance-none"
+                      className="w-full bg-graphite border border-iron text-bone text-[14px] px-3 py-2 rounded-sm focus:border-ember-gold"
                     >
                       {OUTCOMES.map((o) => (
                         <option key={o} value={o}>{o}</option>
